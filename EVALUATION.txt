@@ -1,0 +1,301 @@
+
+Test-1
+_______________________________________________________________________
+
+extern void println(int n);
+
+int u, w;
+
+void f(void) {
+  int v, j;
+  char i;
+
+  for (i = 0; i < 100; i = i + 1) {
+    for (j = 0; j < i; j = j + 1) {
+      u = 1;
+      v = u;
+      w = v;
+      u = w;
+      v = u;
+      w = v;
+      u = w;
+      v = u;
+      w = v;
+    }
+  }
+}
+
+void main(void) {
+  f();
+
+  println(u);
+  println(w);
+}
+
+
+
+Without optimization=>
+Stats -- #instructions : 220270
+         #reads : 70112  #writes 64959  #branches 10311  #other 74888
+
+
+With local optimization=>
+Stats -- #instructions : 195520
+         #reads : 25462  #writes 64959  #branches 10311  #other 94788
+
+With global optimization=>
+Stats -- #instructions : 220270
+         #reads : 70112  #writes 64959  #branches 10311  #other 74888
+
+With both optimization=>
+Stats -- #instructions : 155720
+         #reads : 25462  #writes 45059  #branches 10311  #other 74888
+
+
+
+With both optimization (changing order: global then local) =>
+Stats -- #instructions : 195520
+         #reads : 25462  #writes 64959  #branches 10311  #other 94788
+
+
+
+Cost analysis:
+______________
+Local optimization decreased the # of instruction by 11% and memory read by 64%. However, it increase other operation resulting increase in cost.
+Global optimization has no effect on this i/p.
+However, when we do both optimization together by doing local and then global optimization, it decreased the # of instruction by 29%, memory read by 64% and memory write by 31% without increasing other operation (no increase in cost).
+When we do both optimization together by doing global and then local optimization, it behaves like doing only local optimization.
+
+
+
+
+Test-2
+_______________________________________________________________________
+extern void println(int x);
+
+void main(void) {
+    int x, y;
+    x = 12;
+    y = x; y = x; y = x; y = x; y = x;
+    y = x; y = x; y = x; y = x; y = x;
+    y = x; y = x; y = x; y = x; y = x;
+    y = x; y = x; y = x; y = x; y = x;
+    y = x; y = x; y = x; y = x; y = x;
+    y = x; y = x; y = x; y = x; y = x;
+    y = x; y = x; y = x; y = x; y = x;
+    y = x; y = x; y = x; y = x; y = x;
+    y = x; y = x; y = x; y = x; y = x;
+    y = x; y = x; y = x; y = x; y = x;  
+
+    println(x);  
+}
+
+   
+      
+Without optimization=>
+Stats -- #instructions : 135
+         #reads : 56  #writes 55  #branches 5  #other 19
+
+With local optimization=>
+Stats -- #instructions : 135
+         #reads : 54  #writes 55  #branches 5  #other 21
+
+With global optimization=>
+Stats -- #instructions : 35
+         #reads : 6  #writes 5  #branches 5  #other 19
+
+With both optimization=>
+Stats -- #instructions : 33
+         #reads : 5  #writes 4  #branches 5  #other 19
+
+Cost analysis:
+______________
+Local optimization did not decrease the # of instruction. It decreased very little memory read by 3.6%.
+Global optimization decreased # of instruction by 75%, # of reads by 89.3% and # of writes by 91%.
+When we do both optimization together, it decreased  even more of number of instructions, number of reads and number of writes.
+
+
+
+
+
+Test-3
+_______________________________________________________________________
+extern void println(int x);
+
+void main(void) {
+    int x, y;
+
+    for (x = 0; x < 1000; x = x + 1) {
+        y = 0;
+        if (x > 0) {
+            y = 2*y + 1;
+	    y = 2*y + 1;
+	}
+	else {
+	    y = 2*y - 1;
+	    y = 2*y / 3;
+	}
+        y = 2*y + 1;
+        y = 2*y + 1;
+        y = 2*y + 1;
+    }
+
+    println(x);  
+}
+
+
+      
+Without optimization=>
+Stats -- #instructions : 96044
+         #reads : 33008  #writes 32006  #branches 4008  #other 27022
+
+With local optimization=>
+Stats -- #instructions : 96044
+         #reads : 32007  #writes 32006  #branches 4008  #other 28023
+
+With global optimization=>
+Stats -- #instructions : 22042
+         #reads : 7008  #writes 5006  #branches 4007  #other 6021
+
+With both optimization=>
+Stats -- #instructions : 22040
+         #reads : 7007  #writes 5005  #branches 4007  #other 6021
+
+Cost analysis:
+______________
+Local optimization did not decrease the # of instruction or write. It decreased memory reads by 3%.
+Global optimization decreased  number of instructions by 77%, number of reads by 79% and number of writes by 84.4%.
+When we do both optimization together, it decreased the number of instructions, number of reads and number of writes almost same as global optimization.
+
+
+
+
+
+
+Test-4
+_______________________________________________________________________
+extern void println(int x);
+
+int one(int z) {
+    /* the assignments to z in this function are dead */
+    z = z+1;
+    z = z*2;
+    z = z-1;
+    z = 2*z+1;
+    z = 3*z;
+    
+    return 1;
+}
+
+void main(void) {
+    int x, y;
+
+    /* the assignments to y in this function are dead */
+    for (x = 0; x < 100; x = x+1) {
+        y = 12;
+        y = y+1;
+	y = 2*y;
+	y = one(x);    /* function call: liveness of y should not be affected */
+	y = 3*y+1;
+	y = y+2;	
+    }
+
+    println(x);
+}
+
+
+Without optimization=>
+Stats -- #instructions : 12442
+         #reads : 4208  #writes 4306  #branches 407  #other 3521
+
+With local optimization=>
+Stats -- #instructions : 12442
+         #reads : 4107  #writes 4306  #branches 407  #other 3622
+
+With global optimization=>
+Stats -- #instructions : 3442
+         #reads : 908  #writes 906  #branches 407  #other 1221
+
+With both optimization=>
+Stats -- #instructions : 3440
+         #reads : 907  #writes 905  #branches 407  #other 1221
+
+
+Cost analysis:
+______________
+Local optimization did not decrease the # of instruction nor number of writes. It eliminates memory reads by 2.4%.
+Global optimization decreased  number of instructions by 72.3% , number of reads by 78.4% and number of writes by 79%.
+When we do both optimization together, it decreased the number of instructions, number of reads and number of writes almost same as global optimization.
+
+
+
+
+
+
+
+
+Test-5
+_______________________________________________________________________
+int a, b, c, d, e, f, g, h, i, j;
+int res;
+
+extern void println (int n);
+
+void main(void)
+{
+  a = 1; b = 2; c = 3; d = 4; e = 5;
+  f = 6; g = 7; h = 8; i = 9; j = 10;
+
+  if (a <= b && b <= c && c <= d && d <= e && 
+      !!!(e > f || f > g || g > h || h > i || i > j))
+    res = 1111;
+  else
+    res = 2222;
+  println(res);
+}
+
+
+Without optimization=>
+Stats -- #instructions : 148
+         #reads : 34  #writes 25  #branches 20  #other 69
+
+With local optimization=>
+Stats -- #instructions : 148
+         #reads : 23  #writes 25  #branches 20  #other 80
+
+With global optimization=>
+Stats -- #instructions : 148
+         #reads : 34  #writes 25  #branches 20  #other 69
+
+With both optimization=>
+Stats -- #instructions : 126
+         #reads : 23  #writes 14  #branches 20  #other 69
+
+
+Cost analysis:
+______________
+Local optimization did not decrease the # of instruction nor number of writes. It eliminates memory reads by 32.4%.
+Global optimization did not decrease number of instructions , number of reads or number of writes.
+When we do both optimization together, it decreased the number of instructions by 15%, number of reads by 32.4% and number of writes by 44%.
+
+
+
+
+
+OVERALL cost analysis:
+______________________
+Local optimization often decreases memory read. However, it increases other operations and does not decrease any write operation.
+Global optimization decreases number of instruction, memory read and write at the same time. When we do both optimization local and then global, the compiler performs best. 
+
+
+Peephole Optimization patterns:
+_______________________________
+I have implemented constant copy propagation.
+
+
+
+Interactions between local and global optimizations:
+____________________________________________________
+Local optimization with copy propagation increases opportunity of increase in dead code. So when we do local optimization and then global optimization the compiler can decrease number of instructions, memory read and write as best. 
+
+
