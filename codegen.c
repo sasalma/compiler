@@ -1,6 +1,6 @@
 /*
  * File: codegen.c
- * Author: Saumya Debray
+ * Author: Saumya Debray and Sammi Abida Salma
  * Purpose: Three-address and final code generation for C--
  */
 
@@ -13,11 +13,10 @@
 #include "codegen.h"
 #include "util.h"
 
-extern symtabnode *symbol_table[];
-extern void doOptimization(tnode *ast);
+//extern symtabnode *symbol_table[]; // removed by sammi
+extern void doOptimization(tnode *ast); // added by sammi
+extern void doRegAllocation(tnode *ast); // added by sammi
 
-extern void doRegAllocation(tnode *ast);
-bool optRegAllocFlag;
 
 
 
@@ -68,6 +67,7 @@ static void print_fixed_MIPS_code();
 
 static void print_3addr_ins_no_nl(Quad *ins);
 static void print_string_table();
+static void print_instruction_frequency(tnode *ast);
 
 /*
  * mk_intcon_op(numval) -- create an operand with optype INTEGER and value numval.
@@ -147,11 +147,13 @@ void gen_code(tnode *ast, symtabnode *sptr) {
   curr_fn_symtbl = sptr;
   gen_3addr_code_funcbody(ast);
 
+  //print_instruction_frequency(ast);
+
   doOptimization(ast);
 
   if(optRegAllocFlag)
       doRegAllocation(ast);
-  else
+  
   gen_mips_code(ast);
 }
 
@@ -350,6 +352,7 @@ static void gen_3addr_code_funcall(tnode *ast) {
 static void gen_3addr_code_if(tnode *ast) {
   assert(ast != NULL && ast->ntype == If);
 
+
   Quad *lbl_then = new_label();
   Quad *lbl_else = new_label();
   Quad *lbl_after = new_label();
@@ -359,6 +362,10 @@ static void gen_3addr_code_if(tnode *ast) {
   ast->code_hd = Child0(ast)->code_hd;
 
   Child0(ast)->code_tl->next = lbl_then;
+
+
+
+  frequency = FREQ_branch; // added by sammi *** set frequency of instruction as branch
 
   if (Child1(ast)) {
     gen_3addr_code(Child1(ast));
@@ -381,12 +388,17 @@ static void gen_3addr_code_if(tnode *ast) {
   }
 
   ast->code_tl = lbl_after;
+
+  frequency = FREQ_normal; // added by sammi *** reset frequency of instruction to normal
 }
 
 static void gen_3addr_code_while(tnode *ast) {
   assert(ast != NULL && ast->ntype == While);
 
   Quad *lbl_top, *lbl_body, *lbl_after, *br_back;
+
+  frequency = FREQ_loop; // added by sammi *** set frequency of instruction as loop
+
 
   lbl_top = new_label();
   lbl_body = new_label();
@@ -409,7 +421,9 @@ static void gen_3addr_code_while(tnode *ast) {
   }
   br_back->next = lbl_after;
   ast->code_tl = lbl_after;
-  
+
+  frequency = FREQ_normal; // added by sammi *** reset frequency of instruction to normal
+
 }
 
 
@@ -421,6 +435,8 @@ static void gen_3addr_code_for(tnode *ast) {
   Quad *lbl_top, *lbl_body, *lbl_after, *br_back;
   Quad *nop0, *nop1, *nop2, *nop3;
   Quad *ch0hd, *ch0tl, *ch1hd, *ch1tl, *ch2hd, *ch2tl, *ch3hd, *ch3tl;
+
+
 
   for_init = stFor_Init(ast);
   for_test = stFor_Test(ast);
@@ -442,6 +458,8 @@ static void gen_3addr_code_for(tnode *ast) {
     nop0 = new_instr(NOP, NULL, NULL, NULL);
     ch0hd = ch0tl = nop0;
   }
+  
+  frequency = FREQ_loop; // added by sammi *** set frequency of instruction as loop
 
   if (for_test != NULL) {
     gen_3addr_code_boolexp(for_test, lbl_body, lbl_after);
@@ -486,7 +504,10 @@ static void gen_3addr_code_for(tnode *ast) {
 
   br_back->next = lbl_after;
   ast->code_tl = lbl_after;
-  
+
+
+  frequency = FREQ_normal; // added by sammi *** reset frequency of instruction to normal
+
 }
 
 
@@ -892,8 +913,7 @@ static void gen_mips_code(tnode *ast) {
   printf("_%s:\n", sptr->name);
 
   for (qptr = ast->code_hd; qptr != NULL; qptr = qptr->next) {
-    printf("    # ");
-    print_3addr_ins(qptr);
+    printf("\n#   freq=%d\n", qptr->frequency);
   
     switch (qptr->op) {
     case NOP:
@@ -1071,6 +1091,7 @@ static void gen_mips_if(Quad *qptr) {
   label_no = (dstins->src1->val).numval;
 
   printf("    b%s $t%d, $t%d, %s%d\n", mips_op, 0, 1, LABEL_PREFIX, label_no);
+
 }
 
 static void gen_mips_label(Quad *qptr) {
@@ -1342,6 +1363,7 @@ static Quad *new_instr(Op op, Operand *src1, Operand *src2, Operand *dst) {
   qtmp->src1 = src1;
   qtmp->src2 = src2;
   qtmp->dst = dst;
+  qtmp->frequency = frequency;
   return qtmp;
 }
 
@@ -1494,4 +1516,18 @@ static void print_string_table() {
   for (str_tmp = string_tbl; str_tmp != NULL; str_tmp = str_tmp->next) {
     printf("%s: .asciiz \"%s\"\n", str_tmp->str_lbl, str_tmp->str);
   }
+}
+
+
+
+// added by sammi
+static void print_instruction_frequency(tnode *ast){
+  Quad *qptr;
+
+  assert(ast != NULL);  
+
+  for (qptr = ast->code_hd; qptr != NULL; qptr = qptr->next) {
+      printf("\nop = %d, Freq = %d", qptr->op, qptr->frequency);
+  }
+
 }

@@ -10,7 +10,7 @@
 static tnode *ast;
 static symtabnode *liveRangeNodes[MAX_LOCAL_VARS];
 static int totalNodes;
-static struct nodeInformation{
+struct nodeInformation{
     int cost;
 };
 

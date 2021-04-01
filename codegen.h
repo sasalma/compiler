@@ -1,6 +1,6 @@
 /*
  * File: codegen.h
- * Author: Saumya Debray
+ * Author: Saumya Debray and Sammi Abida Salma
  * Purpose: typedefs and prototypes for three-address code
  */
 
@@ -9,6 +9,14 @@
 
 #include "symbol-table.h"
 #include "syntax-tree.h"
+
+#define FREQ_normal 2
+#define FREQ_branch 1
+#define FREQ_loop 8
+static int frequency = FREQ_normal;
+bool optRegAllocFlag;
+
+
 
 /*
  * The enum Op defines the various operations supported in three-address code
@@ -66,6 +74,8 @@ typedef struct quad {
   struct quad *next, *previous;
   int frequency; // set 2 for normal, 1 for a branch [for nested branch, think more], 8 for loop
 } Quad;
+
+
 
 /********************************* PROTOTYPES *********************************/
 

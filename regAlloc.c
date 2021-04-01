@@ -35,26 +35,25 @@ static void getLocalVars()
   symtabnode *stptr;
   totalNodes = 0;
 
-  //printf("-------------------- LOCAL SYMBOL TABLE --------------------\n");
+  //printf("----------- LOCAL Variables -------------\n");
 
   for (i = 0; i < HASHTBLSZ; i++) {
     for (stptr = SymTab[Local][i]; stptr != NULL; stptr = stptr->next) {
-        //printf("\n %s",stptr->name);
-        liveRangeNodes[totalNodes] = stptr;
-        totalNodes++;
+        if(!stptr->formal){
+            liveRangeNodes[totalNodes] = stptr;
+            totalNodes++;
+        }
     }
   }
 
-  //printf("------------------------------------------------------------\n");
-
-printNodes();
+    //printNodes();
 }
 
 
 
-/*******************************
- *      Print Routiens
- * *****************************/
+/************************************************************************
+ *                           Print Routiens                             *
+ * **********************************************************************/
 static void printNodes(void){
     printf("\nTotal Nodes = %d", totalNodes);
     for(int i=0; i< totalNodes;i++)
