@@ -1,3 +1,12 @@
+
+Node number = 0, Variable = localInt, live state = 1
+ Adjacency List :
+
+Node number = 1, Variable = localCH, live state = 1
+ Adjacency List :
+
+Node number = 2, Variable = tmp$0, live state = 1
+ Adjacency List :
 .text
 # function fun
 # formals: testFormal (loc: 8); 
@@ -43,7 +52,88 @@ _fun:
 
 # end function fun
 
-.text
+
+Node number = 0, Variable = k, live state = 1
+ Adjacency List :
+tmp$11 tmp$12 tmp$13 tmp$14 tmp$15 tmp$14 tmp$18 tmp$19 tmp$21 tmp$22 tmp$21 
+Node number = 1, Variable = x, live state = 1
+ Adjacency List :
+tmp$5 y tmp$16 
+Node number = 2, Variable = y, live state = 1
+ Adjacency List :
+tmp$6 x tmp$17 
+Node number = 3, Variable = res1, live state = 1
+ Adjacency List :
+tmp$3 tmp$4 tmp$20 
+Node number = 4, Variable = res2, live state = 1
+ Adjacency List :
+tmp$8 tmp$9 
+Node number = 5, Variable = tmp$1, live state = 1
+ Adjacency List :
+tmp$2 
+Node number = 6, Variable = tmp$2, live state = 1
+ Adjacency List :
+tmp$1 
+Node number = 7, Variable = tmp$3, live state = 1
+ Adjacency List :
+res1 
+Node number = 8, Variable = tmp$4, live state = 1
+ Adjacency List :
+res1 
+Node number = 9, Variable = tmp$5, live state = 1
+ Adjacency List :
+x 
+Node number = 10, Variable = tmp$6, live state = 1
+ Adjacency List :
+tmp$7 y 
+Node number = 11, Variable = tmp$7, live state = 1
+ Adjacency List :
+tmp$6 
+Node number = 12, Variable = tmp$8, live state = 1
+ Adjacency List :
+res2 
+Node number = 13, Variable = tmp$9, live state = 1
+ Adjacency List :
+res2 
+Node number = 14, Variable = tmp$10, live state = 1
+ Adjacency List :
+
+Node number = 15, Variable = tmp$20, live state = 1
+ Adjacency List :
+res1 
+Node number = 16, Variable = tmp$11, live state = 1
+ Adjacency List :
+k 
+Node number = 17, Variable = tmp$21, live state = 1
+ Adjacency List :
+k tmp$22 k 
+Node number = 18, Variable = tmp$12, live state = 1
+ Adjacency List :
+k 
+Node number = 19, Variable = tmp$22, live state = 1
+ Adjacency List :
+tmp$21 k 
+Node number = 20, Variable = tmp$13, live state = 1
+ Adjacency List :
+k 
+Node number = 21, Variable = tmp$14, live state = 1
+ Adjacency List :
+k tmp$15 k 
+Node number = 22, Variable = tmp$15, live state = 1
+ Adjacency List :
+tmp$14 k 
+Node number = 23, Variable = tmp$16, live state = 1
+ Adjacency List :
+x 
+Node number = 24, Variable = tmp$17, live state = 1
+ Adjacency List :
+y 
+Node number = 25, Variable = tmp$18, live state = 1
+ Adjacency List :
+k 
+Node number = 26, Variable = tmp$19, live state = 1
+ Adjacency List :
+k .text
 # function main
 # formals: 
 # locals: k (loc: -4); x (loc: -8); y (loc: -12); res1 (loc: -16); res2 (loc: -20); tmp$1 (loc: -24); tmp$2 (loc: -28); tmp$3 (loc: -32); tmp$4 (loc: -36); tmp$5 (loc: -40); tmp$6 (loc: -44); tmp$7 (loc: -48); tmp$8 (loc: -52); tmp$9 (loc: -56); tmp$10 (loc: -60); tmp$20 (loc: -64); tmp$11 (loc: -68); tmp$21 (loc: -72); tmp$12 (loc: -76); tmp$22 (loc: -80); tmp$13 (loc: -84); tmp$14 (loc: -88); tmp$15 (loc: -92); tmp$16 (loc: -96); tmp$17 (loc: -100); tmp$18 (loc: -104); tmp$19 (loc: -108); 
