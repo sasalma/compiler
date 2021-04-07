@@ -13,8 +13,19 @@
 extern symtabnode *SymTab[2][HASHTBLSZ];
 
 
+
+static void colorGraph(void);
+static bool isGraphEmpty(void);
+static bool isSpillRequired(void);
+static int getDegree(GraphNode *node);
+static void sendNodeToStack();
+static void spillNode(void);
+
+
+
 static void constructInterfGraph(tnode *ast);
 static void makeEdge(int i, int j);
+static bool chkEdgeAlready(int i, int j);
 static void pushToAdjList(int i, int j);
 static void updateCost( int index, int frequency);
 static int getNodeIndex(symtabnode *sptr);
@@ -25,6 +36,7 @@ static void getLocalVars();
 // print routiens start
 static void printNodes(void);
 static void printGraph(void);
+static void printStack(void);
 // print routiens end
 
 
@@ -33,11 +45,93 @@ void doRegAllocation(tnode *ast){
     getLocalVars();
     initializeNodes();
     constructInterfGraph(ast);
+    colorGraph();
     
 }
 
 
 
+/************************************************************************
+ *                           Graph  Coloring                             *
+ * **********************************************************************/
+static void colorGraph(void){
+    int k = totalAvailRegs;
+    while(!isGraphEmpty()){
+        sendNodeToStack();
+        if(isSpillRequired()) spillNode();            
+    }
+}
+
+static bool isGraphEmpty(void){
+    for(int i=0;i<totalNodes;i++){
+        if(nodeList[i]->isLive) return false;
+    }
+    return true;
+}
+
+static bool isSpillRequired(void){
+    for(int i=0;i<totalNodes;i++){
+        if(nodeList[i]->isLive && getDegree(nodeList[i]) < totalAvailRegs) 
+            return false;
+    }
+    return true;
+}
+
+static int getDegree(GraphNode *node){
+    int degree = 0;
+    struct adjacencyList *tmp = node->adjList;
+    while(tmp){
+        if(tmp->node->isLive) degree++;
+        tmp = tmp->next;
+    }
+    return degree;
+} 
+
+static void sendNodeToStack(){
+    bool changeFlag = true;
+    while(changeFlag){ // do repeatedly
+        changeFlag = false;
+        for(int i=0;i<totalNodes;i++){
+            if(nodeList[i]->isLive && getDegree(nodeList[i]) < totalAvailRegs){ 
+                insertTop(nodeList[i]);
+                nodeList[i]->isLive = false;
+                changeFlag = true;
+                totalAvailRegs--;
+            }
+        } 
+        printStack();
+    }
+    
+  //  printStack();
+}
+
+
+static void spillNode(void){
+    float minCostPerDeg=0, costPerDeg;
+    GraphNode *nodePtr;
+    int spillNodeIndex=-1, degree;
+
+    for(int i=0; i<totalNodes; i++){
+        nodePtr = nodeList[i];
+        if(nodePtr->isLive ){
+            degree = getDegree(nodePtr);
+            if(degree!=0){
+                costPerDeg = nodePtr->cost / degree;
+                if( minCostPerDeg > costPerDeg ){
+                    minCostPerDeg = costPerDeg;
+                    spillNodeIndex = i;
+                }
+            }
+        }
+    }
+
+    if(spillNodeIndex!=-1) nodeList[spillNodeIndex]->isLive = false;
+}
+
+
+/************************************************************************
+ *              Functions to make Interference Graph                    *
+ * **********************************************************************/
 static void constructInterfGraph(tnode *ast){
     //GraphNode *dstNode, *src1Node, *src2Node;
     int dstNodeIndex, src1NodeIndex, src2NodeIndex;
@@ -59,14 +153,24 @@ static void constructInterfGraph(tnode *ast){
         
     }
 
-
     printGraph();
 }
 
 static void makeEdge(int i, int j){
     if(i==-1 || j==-1) return; // either one or both are not vertex of the graph
+    if(chkEdgeAlready(i,j)) return;
     pushToAdjList(i,j);
     pushToAdjList(j,i);
+}
+
+static bool chkEdgeAlready(int i, int j){
+    if(nodeList[i]->adjList==NULL) return false; // no edges so far = adjacency list is empty
+    struct adjacencyList *lptr = nodeList[i]->adjList;
+    while(lptr){
+        if(lptr->node == nodeList[j]) return true;
+        lptr = lptr->next;
+    }
+    return false;
 }
 
 static void pushToAdjList(int i, int j){  // make an edge from i to j
@@ -105,6 +209,7 @@ static void initializeNodes(){
         nodePtr = zalloc(sizeof(GraphNode));
         nodePtr->sptr = liveRangeNodes[i];
         nodePtr->isLive = true;
+        nodePtr->cost = 0;
         
         nodeList[i] = nodePtr;
         nodePtr = NULL;
@@ -143,14 +248,30 @@ static void printNodes(void){
 }
 
 static void printGraph(void){
+    int d;
     struct adjacencyList *tmp;
+    printf("Total Nodes = %d\n", totalNodes);
     for(int i=0;i<totalNodes;i++){
-        printf("\nNode number = %d, Variable = %s, live state = %d", i, nodeList[i]->sptr->name, nodeList[i]->isLive);
-        printf("\n Adjacency List : ");
-        tmp = nodeList[i]->adjList;
-        while(tmp){ 
-            printf("%s ", tmp->node->sptr->name);
-            tmp = tmp->next;
+        if(nodeList[i]->isLive){
+            printf("\nNode number = %d, Variable = %s, live state = %d", i, nodeList[i]->sptr->name, nodeList[i]->isLive);
+            printf("\n\tAdjacency List : ");
+            tmp = nodeList[i]->adjList;
+            while(tmp){ 
+                printf("%s ", tmp->node->sptr->name);
+                tmp = tmp->next;
+            }
+            d = getDegree(nodeList[i]);
+            printf("\tDegree = %d ", d);
+            printf("\n\tNode cost = %d ", nodeList[i]->cost);
         }
+    }
+}
+
+static void printStack(void){
+    struct stack *stackPtr = statckTop;
+    printf("\nPrinting Stack");
+    while(stackPtr){
+        printf("\n %s", stackPtr->node->sptr->name);
+        stackPtr = stackPtr->next;
     }
 }

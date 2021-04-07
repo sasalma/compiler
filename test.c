@@ -1,8 +1,7 @@
 /* more complex conditionals */
-
+/*
 int fun(int testFormal){
-  char localCH;
-  int localInt;
+
   return 5;
 }
 
@@ -38,6 +37,7 @@ void main(void)
   }
 
 }
+*/
 
 
 
@@ -54,3 +54,24 @@ void main(void) {
 
     println(x);
 }*/
+
+
+
+
+
+extern void println(int x);
+
+void main(void) {
+    int x, y, z, u;
+
+    x = 12345;
+    u = 98765;
+
+    y = x;
+    z = y;
+    println(z);
+
+    z = u;
+    y = z;
+    println(y);
+}
