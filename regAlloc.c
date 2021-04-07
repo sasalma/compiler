@@ -15,6 +15,8 @@ extern symtabnode *SymTab[2][HASHTBLSZ];
 
 
 static void colorGraph(void);
+static void assignRegisters(void);
+static int getRegisterNumber( struct stack *stackPtr );
 static bool isGraphEmpty(void);
 static bool isSpillRequired(void);
 static int getDegree(GraphNode *node);
@@ -46,7 +48,9 @@ void doRegAllocation(tnode *ast){
     initializeNodes();
     constructInterfGraph(ast);
     colorGraph();
-    
+
+
+    printf("\n");
 }
 
 
@@ -60,7 +64,40 @@ static void colorGraph(void){
         sendNodeToStack();
         if(isSpillRequired()) spillNode();            
     }
+
+    assignRegisters();
 }
+
+static void assignRegisters(void){
+    int i=0;
+    struct stack *stackPtr = statckTop;
+    while(stackPtr){
+        //stackPtr->node->registerIndex = getRegisterNumber(stackPtr);
+        i = getRegisterNumber(stackPtr);
+        stackPtr->node->registerIndex = i;
+        printf("\n VAR %s is in REGISTER %s", stackPtr->node->sptr->name, registerAddress[i] );        
+        stackPtr = stackPtr->next;
+    }
+}
+
+static int getRegisterNumber( struct stack *stackPtr ){
+    bool isAvailable;
+    struct adjacencyList *tmp;
+    for(int i=0; i<totalAvailRegs; i++){
+        isAvailable = true;        
+        for(tmp = stackPtr->node->adjList;tmp; tmp = tmp->next){
+            if(tmp->node->registerIndex == i) {
+                isAvailable = false;
+                break;
+            }
+        }
+
+        if(isAvailable) return i;
+    }
+    return -1;
+}
+
+
 
 static bool isGraphEmpty(void){
     for(int i=0;i<totalNodes;i++){
@@ -96,10 +133,9 @@ static void sendNodeToStack(){
                 insertTop(nodeList[i]);
                 nodeList[i]->isLive = false;
                 changeFlag = true;
-                totalAvailRegs--;
+                printStack();
             }
         } 
-        printStack();
     }
     
   //  printStack();
@@ -210,6 +246,8 @@ static void initializeNodes(){
         nodePtr->sptr = liveRangeNodes[i];
         nodePtr->isLive = true;
         nodePtr->cost = 0;
+        nodePtr->registerIndex = -1;
+        //nodePtr->varRegister = "";
         
         nodeList[i] = nodePtr;
         nodePtr = NULL;
