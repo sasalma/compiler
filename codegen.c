@@ -151,8 +151,8 @@ void gen_code(tnode *ast, symtabnode *sptr) {
 
   doOptimization(ast);
 
-  if(optRegAllocFlag)
-      doRegAllocation(ast);
+  //if(optRegAllocFlag)
+      //doRegAllocation(ast);
   
   gen_mips_code(ast);
 }

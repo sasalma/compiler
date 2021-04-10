@@ -26,13 +26,13 @@ static void spillNode(void);
 
 
 static void constructInterfGraph(tnode *ast);
-static void makeEdge(int i, int j);
-static bool chkEdgeAlready(int i, int j);
-static void pushToAdjList(int i, int j);
+ void makeEdge(int i, int j);
+ bool chkEdgeAlready(int i, int j);
+ void pushToAdjList(int i, int j);
 static void updateCost( int index, int frequency);
-static int getNodeIndex(symtabnode *sptr);
-static void initializeNodes();
-static void getLocalVars();
+int getNodeIndex(symtabnode *sptr);
+void initializeNodes();
+void getLocalVars();
 
 
 // print routiens start
@@ -44,8 +44,8 @@ static void printStack(void);
 
 void doRegAllocation(tnode *ast){
     //printf("do reg alloc here!\n");
-    getLocalVars();
-    initializeNodes();
+    //getLocalVars();
+    //initializeNodes();
     constructInterfGraph(ast);
     colorGraph();
 
@@ -76,7 +76,7 @@ static void assignRegisters(void){
         i = getRegisterNumber(stackPtr);
         stackPtr->node->registerIndex = i;
         stackPtr->node->sptr->registerAddr = registerAddress[i];
-        printf("\n VAR %s is in REGISTER %s", stackPtr->node->sptr->name, stackPtr->node->sptr->registerAddr  );        
+       // printf("\n VAR %s is in REGISTER %s", stackPtr->node->sptr->name, stackPtr->node->sptr->registerAddr  );        
         stackPtr = stackPtr->next;
         //mapping[totalMapping].sptrVar = stackPtr->node->sptr;
         //mapping[totalMapping].varRegister = registerAddress[i];
@@ -138,7 +138,7 @@ static void sendNodeToStack(){
                 insertTop(nodeList[i]);
                 nodeList[i]->isLive = false;
                 changeFlag = true;
-                printStack();
+                //printStack();
             }
         } 
     }
@@ -174,6 +174,8 @@ static void spillNode(void){
  *              Functions to make Interference Graph                    *
  * **********************************************************************/
 static void constructInterfGraph(tnode *ast){
+    // actually UPDATE costs of the graph nodes
+
     //GraphNode *dstNode, *src1Node, *src2Node;
     int dstNodeIndex, src1NodeIndex, src2NodeIndex;
     for(Quad *qptr=ast->code_hd;qptr!=ast->code_tl; qptr = qptr->next){
@@ -187,24 +189,26 @@ static void constructInterfGraph(tnode *ast){
         if(src1NodeIndex != -1)  updateCost( src1NodeIndex, qptr->frequency);
         if(src2NodeIndex != -1)  updateCost( src2NodeIndex, qptr->frequency);
 
+        /*
         // make edge in the graph
         if(src1NodeIndex != dstNodeIndex)  makeEdge(src1NodeIndex, dstNodeIndex);
         if(src2NodeIndex != dstNodeIndex)  makeEdge(src2NodeIndex, dstNodeIndex);
         if(src1NodeIndex != src2NodeIndex)  makeEdge(src1NodeIndex, src2NodeIndex);
+        */
         
     }
 
-    printGraph();
+    //printGraph();
 }
 
-static void makeEdge(int i, int j){
+void makeEdge(int i, int j){
     if(i==-1 || j==-1) return; // either one or both are not vertex of the graph
     if(chkEdgeAlready(i,j)) return;
     pushToAdjList(i,j);
     pushToAdjList(j,i);
 }
 
-static bool chkEdgeAlready(int i, int j){
+ bool chkEdgeAlready(int i, int j){
     if(nodeList[i]->adjList==NULL) return false; // no edges so far = adjacency list is empty
     struct adjacencyList *lptr = nodeList[i]->adjList;
     while(lptr){
@@ -214,7 +218,7 @@ static bool chkEdgeAlready(int i, int j){
     return false;
 }
 
-static void pushToAdjList(int i, int j){  // make an edge from i to j
+ void pushToAdjList(int i, int j){  // make an edge from i to j
     struct adjacencyList *l = nodeList[i]->adjList, *newNode = zalloc(sizeof(struct adjacencyList));
     newNode->node = nodeList[j];
     newNode->next = NULL;
@@ -236,7 +240,7 @@ static void updateCost( int index, int frequency){
 }
 
 
-static int getNodeIndex(symtabnode *sptr){
+int getNodeIndex(symtabnode *sptr){
     if(sptr->type == t_Func) return -1;
     for(int i=0; i<totalNodes; i++){
         if(liveRangeNodes[i]==sptr) return i;
@@ -244,7 +248,7 @@ static int getNodeIndex(symtabnode *sptr){
     return -1;
 }
 
-static void initializeNodes(){
+void initializeNodes(){
     GraphNode *nodePtr;
     for(int i=0;i<totalNodes;i++){
         nodePtr = zalloc(sizeof(GraphNode));
@@ -260,7 +264,7 @@ static void initializeNodes(){
 }
 
 
-static void getLocalVars()
+void getLocalVars()
 {
   int i;
   symtabnode *stptr;

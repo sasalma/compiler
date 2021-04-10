@@ -11,6 +11,12 @@
 
 bool optLocalFlag, optGlobalFlag;
 
+extern void doRegAllocation(tnode *ast);
+extern void getLocalVars();
+extern void initializeNodes();
+extern int getNodeIndex(symtabnode *sptr);
+extern  void makeEdge(int i, int j);
+
 
 
 
@@ -53,12 +59,15 @@ static void destructor(void);
 
 
 
+static void makeInterfGraph(void);
+
+
 void doOptimization(tnode *ast_codegen){
 //optGlobalFlag = true; 
 //optLocalFlag = true;   
 
 
-    if(!optLocalFlag && !optGlobalFlag) return; // no optimization
+    if(!optLocalFlag && !optGlobalFlag && !optRegAllocFlag) return; // no optimization
 
     ast = ast_codegen;
     setBackwardPtrs();
@@ -108,6 +117,7 @@ void doOptimization(tnode *ast_codegen){
     
     if(optLocalFlag) localOptimization();
     if(optGlobalFlag) globalOptimization();
+    if(optRegAllocFlag) makeInterfGraph();
 
     // destructor
     destructor();
@@ -744,4 +754,113 @@ static bool noBranchJump(Op op){
                     break;       
     }
     return true;
+}
+
+
+static void makeInterfGraph(void){
+    getLocalVars();
+    initializeNodes();
+
+    initDefUseList();
+    livenessAnalysys();
+
+
+    Quad *qptr, *qptr_next_ins=NULL; 
+        int dstNodeIndex, src1NodeIndex, src2NodeIndex, liveNodeIndex;
+
+
+    for(int i=totalBlockLeaders-1; i>=0; i--){
+    initLiveSet(i);
+
+    for(qptr= blockList[i]->tail_leader; ; qptr = qptr->previous){
+        switch(qptr->op){
+            case UMINUS_OP:
+            case MOVE: 
+                if(qptr->src1->optype==SYMTBL_PTR && qptr->src1->val.stptr->type == t_Func) 
+                    break;
+                
+                if(qptr->dst->optype == DEREF || checkLive(qptr->dst->val.stptr)){
+                        removeFromLiveSet(qptr->dst->val.stptr);
+                    if(qptr->dst->optype == DEREF )  
+                        insertIntoLiveSet(qptr->dst->val.stptr);
+
+                    if(qptr->src1->optype==SYMTBL_PTR  || qptr->src1->optype == DEREF)
+                        insertIntoLiveSet(qptr->src1->val.stptr);
+                }
+                /*else { qptr->op = NOP; // mark as dead
+                    changeFlag = true;
+                }*/
+                break;
+                
+            case ADD_OP:
+            case SUB_OP:
+            case MUL_OP:
+            case DIV_OP:
+                if(checkLive(qptr->dst->val.stptr)){
+                    removeFromLiveSet(qptr->dst->val.stptr);
+                    if(qptr->src1->optype==SYMTBL_PTR && qptr->src1->val.stptr->type != t_Func)
+                        insertIntoLiveSet(qptr->src1->val.stptr);
+                    if(qptr->src2->optype==SYMTBL_PTR && qptr->src1->val.stptr->type != t_Func)
+                        insertIntoLiveSet(qptr->src2->val.stptr);
+                }
+                /*else { qptr->op = NOP; // mark as dead
+                    changeFlag = true;
+                }*/
+                break;
+
+            case PARAM:
+                if((qptr->src1->optype==SYMTBL_PTR && qptr->src1->val.stptr->type != t_Func)||qptr->src1->optype==DEREF)
+                    insertIntoLiveSet(qptr->src1->val.stptr); 
+                break;
+
+            case RETRIEVE:
+                if(checkLive(qptr->src1->val.stptr)){
+                    removeFromLiveSet(qptr->src1->val.stptr);
+                }            
+                break;
+
+            case RET:
+                if(qptr->src1!=NULL && qptr->src1->optype==SYMTBL_PTR )
+                    insertIntoLiveSet(qptr->src1->val.stptr); 
+                break;
+
+
+            case IF_EQ: 
+            case IF_NE: 
+            case IF_LE: 
+            case IF_LT: 
+            case IF_GE: 
+            case IF_GT:
+                if(qptr->src1->optype==SYMTBL_PTR)
+                    insertIntoLiveSet(qptr->src1->val.stptr);
+                if(qptr->src2->optype==SYMTBL_PTR)
+                    insertIntoLiveSet(qptr->src2->val.stptr);
+                break;    
+            default: break;
+        }
+
+        // check live set and make edges as necessary
+        dstNodeIndex = src1NodeIndex = src2NodeIndex = -1;
+        if(qptr->dst && qptr->dst->optype == SYMTBL_PTR)  dstNodeIndex = getNodeIndex(qptr->dst->val.stptr);
+        //if(qptr->src1 && qptr->src1->optype == SYMTBL_PTR)  src1NodeIndex = getNodeIndex(qptr->src1->val.stptr);
+        //if(qptr->src2 && qptr->src2->optype == SYMTBL_PTR)  src2NodeIndex = getNodeIndex(qptr->src2->val.stptr);
+        
+        //for each live range LRi ∈ LiveNow :
+                       //add the edge (LRx, LRi)
+            for(int k=0;k<MAX_LOCAL_VARS;k++){
+                if(liveSet[k]!=NULL) {
+                    liveNodeIndex = getNodeIndex(liveSet[k]);
+                    makeEdge(liveNodeIndex, dstNodeIndex);
+                }
+            }        
+    
+        if(qptr==blockList[i]->leader) break; //reached to the top of the block
+    }
+
+
+    }
+
+
+
+    doRegAllocation(ast);
 }

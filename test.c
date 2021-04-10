@@ -1,5 +1,5 @@
 /* more complex conditionals */
-/*
+
 int fun(int testFormal){
 
   return 5;
@@ -37,7 +37,7 @@ void main(void)
   }
 
 }
-*/
+
 
 
 
@@ -56,7 +56,7 @@ void main(void) {
 }*/
 
 
-
+/*
 extern void println(int x);
 
 void main(void) {
@@ -79,4 +79,4 @@ void main(void) {
       if(1>0)
         z = x + y;
     }
-}
+}*/
