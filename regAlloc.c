@@ -69,14 +69,19 @@ static void colorGraph(void){
 }
 
 static void assignRegisters(void){
-    int i=0;
+    int i;
+//    totalMapping = 0;
     struct stack *stackPtr = statckTop;
     while(stackPtr){
-        //stackPtr->node->registerIndex = getRegisterNumber(stackPtr);
         i = getRegisterNumber(stackPtr);
         stackPtr->node->registerIndex = i;
-        printf("\n VAR %s is in REGISTER %s", stackPtr->node->sptr->name, registerAddress[i] );        
+        stackPtr->node->sptr->registerAddr = registerAddress[i];
+        printf("\n VAR %s is in REGISTER %s", stackPtr->node->sptr->name, stackPtr->node->sptr->registerAddr  );        
         stackPtr = stackPtr->next;
+        //mapping[totalMapping].sptrVar = stackPtr->node->sptr;
+        //mapping[totalMapping].varRegister = registerAddress[i];
+
+        //totalMapping++;
     }
 }
 
@@ -265,7 +270,7 @@ static void getLocalVars()
 
   for (i = 0; i < HASHTBLSZ; i++) {
     for (stptr = SymTab[Local][i]; stptr != NULL; stptr = stptr->next) {
-        if(!stptr->formal){
+        if(!stptr->formal && stptr->type!=t_Array){ // why not formal vars into register?
             liveRangeNodes[totalNodes] = stptr;
             totalNodes++;
         }

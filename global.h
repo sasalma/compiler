@@ -26,4 +26,8 @@
 #define t_None   6
 #define t_Error  7
 
+
+#define MAX_LOCAL_VARS 40
+
+
 #endif  /* _GLOBAL_H_ */

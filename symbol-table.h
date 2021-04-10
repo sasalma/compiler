@@ -34,6 +34,7 @@ typedef struct stblnode {
                               have this value set to 1 since the string constant
                               is printed out of the string table. */ 
   struct stblnode *next;
+  char *registerAddr;      // allocated register address - added by sammi 
 } symtabnode;
 
 /*********************************************************************

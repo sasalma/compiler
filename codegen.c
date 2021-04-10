@@ -12,11 +12,11 @@
 #include "syntax-tree.h"
 #include "codegen.h"
 #include "util.h"
+#include "regAlloc.h"
 
 //extern symtabnode *symbol_table[]; // removed by sammi
 extern void doOptimization(tnode *ast); // added by sammi
 extern void doRegAllocation(tnode *ast); // added by sammi
-
 
 
 
@@ -364,8 +364,8 @@ static void gen_3addr_code_if(tnode *ast) {
   Child0(ast)->code_tl->next = lbl_then;
 
 
-
-  frequency = FREQ_branch; // added by sammi *** set frequency of instruction as branch
+  if(frequency != FREQ_loop)
+    frequency = FREQ_branch; // added by sammi *** set frequency of instruction as branch
 
   if (Child1(ast)) {
     gen_3addr_code(Child1(ast));
@@ -389,6 +389,7 @@ static void gen_3addr_code_if(tnode *ast) {
 
   ast->code_tl = lbl_after;
 
+if(frequency != FREQ_loop)
   frequency = FREQ_normal; // added by sammi *** reset frequency of instruction to normal
 }
 
@@ -912,6 +913,7 @@ static void gen_mips_code(tnode *ast) {
   dump_fn_info(curr_fn_symtbl);
   printf("_%s:\n", sptr->name);
 
+
   for (qptr = ast->code_hd; qptr != NULL; qptr = qptr->next) {
     printf("\n#   freq=%d\n", qptr->frequency);
   
@@ -994,7 +996,10 @@ static void gen_mips_move(Quad *qptr) {
   case SYMTBL_PTR:
     switch (stptr->scope) {
     case Local:
-      printf("    %s $t0, %d($fp)\t# %s\n", StoreIns[stptr->type], stptr->offset, stptr->name);
+      if(stptr->registerAddr!=NULL) //added by sammi
+          printf("    move %s, $t0\t# %s\n", stptr->registerAddr, stptr->name); 
+      else    
+          printf("    %s $t0, %d($fp)\t# %s\n", StoreIns[stptr->type], stptr->offset, stptr->name);
       break;
 
     case Global:
@@ -1107,6 +1112,7 @@ static void gen_mips_enter(Quad *qptr) {
   printf("    sw $ra, 0($sp)     # save old $ra\n");
   printf("    la $fp, 0($sp)     # $fp := $sp\n");
   printf("    la $sp, -%d($sp)   # allocate stack frame\n", sptr->offset);
+
 }
 
 static void gen_mips_leave(Quad *qptr) {
@@ -1160,14 +1166,17 @@ static void gen_mips_load(Operand *src, char *reg_prefix, int dstreg) {
     else {
       assert(sptr->scope == Local);
       if (type == t_Array && sptr->formal) {
-	/*
-	 * arrays are passed by reference, so the value passed is the address
-	 */
-	type = t_Addr;
+          /*
+          * arrays are passed by reference, so the value passed is the address
+          */
+          type = t_Addr;
       }
 
-      printf("    %s $%s%d, %d($fp)\t# %s\n",
-	     LoadIns[type], reg_prefix, dstreg, sptr->offset, sptr->name);
+      if(sptr->registerAddr!=NULL) //added by sammi
+          printf("    move $%s%d, %s\t# %s\n", reg_prefix, dstreg, sptr->registerAddr, sptr->name); 
+      else
+          printf("    %s $%s%d, %d($fp)\t# %s\n",
+          LoadIns[type], reg_prefix, dstreg, sptr->offset, sptr->name);
     }
     break;
 
@@ -1234,7 +1243,11 @@ static void gen_mips_store(Operand *dst, char *reg_prefix, int srcreg) {
     }
     else {
       assert(sptr->scope == Local);
-      printf("    %s $%s%d, %d($fp)\t# %s\n",
+
+      if(sptr->registerAddr!=NULL) //added by sammi
+          printf("    move  %s,  $%s%d\t# %s\n", sptr->registerAddr, reg_prefix, srcreg, sptr->name); 
+      else
+          printf("    %s $%s%d, %d($fp)\t# %s\n",
 	     StoreIns[sptr->type], reg_prefix, srcreg, sptr->offset, sptr->name);
     }
     break;

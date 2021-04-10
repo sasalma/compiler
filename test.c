@@ -57,12 +57,12 @@ void main(void) {
 
 
 
-
-
 extern void println(int x);
 
 void main(void) {
     int x, y, z, u;
+    char c;
+    int b[10];
 
     x = 12345;
     u = 98765;
@@ -74,4 +74,9 @@ void main(void) {
     z = u;
     y = z;
     println(y);
+
+    for(x=0;x<10;x=x+1){
+      if(1>0)
+        z = x + y;
+    }
 }
