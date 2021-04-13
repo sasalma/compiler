@@ -997,7 +997,13 @@ static void gen_mips_move(Quad *qptr) {
     switch (stptr->scope) {
     case Local:
       if(stptr->registerAddr!=NULL) //added by sammi
+      {
+          if(stptr->type==t_Char) {
+              printf( "    sll $t0, $t0, 24 # Takes the 8th bit to the 32th position\n");
+              printf ( "    sra $t0, $t0, 24 # Takes the 32th bit back to the 8th position preserving the sign\n");
+          }
           printf("    move %s, $t0\t# %s\n", stptr->registerAddr, stptr->name); 
+      }
       else    
           printf("    %s $t0, %d($fp)\t# %s\n", StoreIns[stptr->type], stptr->offset, stptr->name);
       break;

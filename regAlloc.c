@@ -13,6 +13,7 @@
 extern symtabnode *SymTab[2][HASHTBLSZ];
 
 
+static void destructor(void);
 
 static void colorGraph(void);
 static void assignRegisters(void);
@@ -51,6 +52,13 @@ void doRegAllocation(tnode *ast){
 
 
     printf("\n");
+    destructor();
+}
+
+static void destructor(void){
+    statckTop = NULL;
+    
+    totalNodes = 0;
 }
 
 
@@ -76,7 +84,7 @@ static void assignRegisters(void){
         i = getRegisterNumber(stackPtr);
         stackPtr->node->registerIndex = i;
         stackPtr->node->sptr->registerAddr = registerAddress[i];
-       // printf("\n VAR %s is in REGISTER %s", stackPtr->node->sptr->name, stackPtr->node->sptr->registerAddr  );        
+      //  printf("\n VAR %s is in REGISTER %s", stackPtr->node->sptr->name, stackPtr->node->sptr->registerAddr  );        
         stackPtr = stackPtr->next;
         //mapping[totalMapping].sptrVar = stackPtr->node->sptr;
         //mapping[totalMapping].varRegister = registerAddress[i];
@@ -143,7 +151,7 @@ static void sendNodeToStack(){
         } 
     }
     
-  //  printStack();
+   // printStack();
 }
 
 
