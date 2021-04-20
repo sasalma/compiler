@@ -27,7 +27,7 @@
 #define t_Error  7
 
 
-#define MAX_LOCAL_VARS 40
+#define MAX_LOCAL_VARS 65
 
 
 #endif  /* _GLOBAL_H_ */

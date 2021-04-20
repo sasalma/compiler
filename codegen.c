@@ -915,7 +915,7 @@ static void gen_mips_code(tnode *ast) {
 
 
   for (qptr = ast->code_hd; qptr != NULL; qptr = qptr->next) {
-    printf("\n#   freq=%d\n", qptr->frequency);
+    //printf("\n#   freq=%d\n", qptr->frequency); // print fequency
   
     switch (qptr->op) {
     case NOP:

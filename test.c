@@ -1,3 +1,56 @@
+/*
+ * regalloc-03: register allocation for many variables in a single basic block.
+ *
+ * In this program none of the variables is live for very long and don't
+ * interfere with many other variables, so the register allocator should be
+ * able to color the interference graph with little or no spilling.
+ */
+
+extern void println(int x);
+
+void main(void) {
+  int x01, x02, x03, x04, x05, x06, x07, x08, x09, x10;
+  int y01, y02, y03, y04, y05, y06, y07, y08, y09, y10;
+  int z01, z02, z03, z04, z05, z06, z07, z08, z09, z10;
+
+  x01 = 1;
+  x02 = x01 + 1;
+  x03 = x02 + x01;
+  x04 = x03 + x02;
+  x05 = x04 + x03;
+  x06 = x05 + x04;
+  x07 = x06 + x05;
+  x08 = x07 + x06;
+  x09 = x08 + x07;
+  x10 = x09 + x08;
+  y01 = x10 + x09;
+  y02 = y01 + 1;
+  y03 = y02 + y01;
+  y04 = y03 + y02;
+  y05 = y04 + y03;
+  y06 = y05 + y04;
+  y07 = y06 + y05;
+  y08 = y07 + y06;
+  y09 = y08 + y07;
+  y10 = y09 + y08;
+  z01 = y10 + y09;
+  z02 = z01 + 1;
+  z03 = z02 + z01;
+  z04 = z03 + z02;
+  z05 = z04 + z03;
+  z06 = z05 + z04;
+  z07 = z06 + z05;
+  z08 = z07 + z06;
+  z09 = z08 + z07;
+  z10 = z09 + z08;
+  
+  println(z10);
+}
+
+
+
+
+
 /* a sequence of procedure calls */
 /*
 int y;
@@ -30,8 +83,7 @@ void main(void)
 
 /* nested function calls */
 /* a1m2 test 36  problem */
-/*
-int add(int x, int y)
+/*int add(int x, int y)
 {
   return x+y;
 }
@@ -53,17 +105,27 @@ void main(void)
 
 
 /* assignment: int --> char conversion: locals */
-extern void println (int n);
+/*extern void println (int n);
 
 void main(void)
 {
+  int x, temp4, i, temp6;
+  temp4 = x - 1;
+
+x = temp4;
+
+temp6 = i - 1;
+
+i = temp6;
+
+  
   char x;
   int y;
 
   x = 255;
   y = x;
   println(y);
-}
+}*/
 
 
 

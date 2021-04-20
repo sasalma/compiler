@@ -156,13 +156,26 @@ static void copyPropagation(void){
 static void copyPropForBlock(int i){
     Quad *qptr, *qptr_next_ins=NULL;   
     for(qptr= blockList[i]->leader; qptr && qptr != leadersList[i+1]; qptr = qptr->next){
-        if(qptr->op==MOVE){
+      switch(qptr->op){ 
+        //if(qptr->op==MOVE)
+        case MOVE: {
             for(qptr_next_ins=qptr->next; qptr_next_ins!=NULL && qptr_next_ins->op==NOP; qptr_next_ins = qptr_next_ins->next){
             }
             if(qptr_next_ins!=NULL && qptr_next_ins->op==MOVE &&  qptr->dst->val.stptr->type == qptr_next_ins->dst->val.stptr->type && qptr->dst->val.stptr == qptr_next_ins->src1->val.stptr){
                 qptr_next_ins->src1= qptr->src1;
             }
-        }
+          }
+          break;
+
+        case ADD_OP:
+        case SUB_OP:
+        case MUL_OP:
+        case DIV_OP:
+          
+          break;
+        default: break;
+
+      }  
     }
 }
 /******************* END OF LOCAL OPTIMIZATION ****************************/
@@ -226,7 +239,7 @@ static bool eiliminateDeadCode(int blockNumber){
                     removeFromLiveSet(qptr->dst->val.stptr);
                     if(qptr->src1->optype==SYMTBL_PTR && qptr->src1->val.stptr->type != t_Func)
                         insertIntoLiveSet(qptr->src1->val.stptr);
-                    if(qptr->src2->optype==SYMTBL_PTR && qptr->src1->val.stptr->type != t_Func)
+                    if(qptr->src2->optype==SYMTBL_PTR && qptr->src2->val.stptr->type != t_Func)
                         insertIntoLiveSet(qptr->src2->val.stptr);
                 }
                 else { qptr->op = NOP; // mark as dead
@@ -773,6 +786,26 @@ static void makeInterfGraph(void){
     initLiveSet(i);
 
     for(qptr= blockList[i]->tail_leader; ; qptr = qptr->previous){
+        // check live set and make edges as necessary
+        dstNodeIndex = src1NodeIndex = src2NodeIndex = -1;
+        if(qptr->dst && qptr->dst->optype == SYMTBL_PTR)  
+        {
+            dstNodeIndex = getNodeIndex(qptr->dst->val.stptr);
+        //if(qptr->src1 && qptr->src1->optype == SYMTBL_PTR)  src1NodeIndex = getNodeIndex(qptr->src1->val.stptr);
+        //if(qptr->src2 && qptr->src2->optype == SYMTBL_PTR)  src2NodeIndex = getNodeIndex(qptr->src2->val.stptr);
+        
+        //for each live range LRi ∈ LiveNow :
+                       //add the edge (LRx, LRi)
+            for(int k=0;k<MAX_LOCAL_VARS;k++){
+                if(liveSet[k]!=NULL) {
+                    liveNodeIndex = getNodeIndex(liveSet[k]);
+                    makeEdge(liveNodeIndex, dstNodeIndex);
+                }
+            }
+        } 
+
+
+
         switch(qptr->op){
             case UMINUS_OP:
             case MOVE: 
@@ -787,9 +820,6 @@ static void makeInterfGraph(void){
                     if(qptr->src1->optype==SYMTBL_PTR  || qptr->src1->optype == DEREF)
                         insertIntoLiveSet(qptr->src1->val.stptr);
                 }
-                /*else { qptr->op = NOP; // mark as dead
-                    changeFlag = true;
-                }*/
                 break;
                 
             case ADD_OP:
@@ -797,19 +827,16 @@ static void makeInterfGraph(void){
             case MUL_OP:
             case DIV_OP:
                 if(checkLive(qptr->dst->val.stptr)){
-                    removeFromLiveSet(qptr->dst->val.stptr);
+                    removeFromLiveSet(qptr->dst->val.stptr);}
                     if(qptr->src1->optype==SYMTBL_PTR && qptr->src1->val.stptr->type != t_Func)
                         insertIntoLiveSet(qptr->src1->val.stptr);
-                    if(qptr->src2->optype==SYMTBL_PTR && qptr->src1->val.stptr->type != t_Func)
+                    if(qptr->src2->optype==SYMTBL_PTR && qptr->src2->val.stptr->type != t_Func)
                         insertIntoLiveSet(qptr->src2->val.stptr);
-                }
-                /*else { qptr->op = NOP; // mark as dead
-                    changeFlag = true;
-                }*/
+                //}
                 break;
 
             case PARAM:
-                if((qptr->src1->optype==SYMTBL_PTR && qptr->src1->val.stptr->type != t_Func)||qptr->src1->optype==DEREF)
+                //if((qptr->src1->optype==SYMTBL_PTR && qptr->src1->val.stptr->type != t_Func)||qptr->src1->optype==DEREF)
                     insertIntoLiveSet(qptr->src1->val.stptr); 
                 break;
 
@@ -839,20 +866,7 @@ static void makeInterfGraph(void){
             default: break;
         }
 
-        // check live set and make edges as necessary
-        dstNodeIndex = src1NodeIndex = src2NodeIndex = -1;
-        if(qptr->dst && qptr->dst->optype == SYMTBL_PTR)  dstNodeIndex = getNodeIndex(qptr->dst->val.stptr);
-        //if(qptr->src1 && qptr->src1->optype == SYMTBL_PTR)  src1NodeIndex = getNodeIndex(qptr->src1->val.stptr);
-        //if(qptr->src2 && qptr->src2->optype == SYMTBL_PTR)  src2NodeIndex = getNodeIndex(qptr->src2->val.stptr);
-        
-        //for each live range LRi ∈ LiveNow :
-                       //add the edge (LRx, LRi)
-            for(int k=0;k<MAX_LOCAL_VARS;k++){
-                if(liveSet[k]!=NULL) {
-                    liveNodeIndex = getNodeIndex(liveSet[k]);
-                    makeEdge(liveNodeIndex, dstNodeIndex);
-                }
-            }        
+       
     
         if(qptr==blockList[i]->leader) break; //reached to the top of the block
     }

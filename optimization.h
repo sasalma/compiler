@@ -1,10 +1,11 @@
 #include "symbol-table.h"
 #include "syntax-tree.h"
 #include "codegen.h"
+#include "global.h"
 
 #define MAX_BLOCK 100
 #define MAX_PREDECESSOR 30
-#define MAX_LOCAL_VARS 40
+//#define MAX_LOCAL_VARS 40
 
 Quad *leadersList[MAX_BLOCK];
 int totalBlockLeaders; 
