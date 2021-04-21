@@ -60,6 +60,9 @@ static void destructor(void);
 
 
 static void makeInterfGraph(void);
+static void  copyPropForBlock_revised(int i);
+
+int Total_Local_Max;
 
 
 void doOptimization(tnode *ast_codegen){
@@ -113,7 +116,9 @@ void doOptimization(tnode *ast_codegen){
             printf("\t%d",blockList[i]->successorList[j]);
     }*/
 
+    getLocalVars();
 
+    
     
     if(optLocalFlag) localOptimization();
     if(optGlobalFlag) globalOptimization();
@@ -148,31 +153,113 @@ static void localOptimization(void){
 
 static void copyPropagation(void){
     for(int i=0; i<totalBlockLeaders; i++){
-        copyPropForBlock(i);
+        //copyPropForBlock(i);
+        copyPropForBlock_revised(i);
     }
 
 }
 
+
+static void  copyPropForBlock_revised(int i){
+    Quad *qptr, *qptrLoop;
+    for(qptrLoop = blockList[i]->leader; qptrLoop && qptrLoop != blockList[i]->tail_leader ; qptrLoop = qptrLoop->next){ //leadersList[i+1] is replaced by blockList[i]->tail_leader 
+      if(qptrLoop->op==MOVE)
+      {        
+        for(qptr = qptrLoop->next; qptr && qptr != blockList[i]->tail_leader; qptr = qptr->next){//leadersList[i+1] is replaced by blockList[i]->tail_leader
+          switch(qptr->op){
+          case MOVE:
+          case ADD_OP:
+          case SUB_OP:
+          case MUL_OP:
+          case DIV_OP:
+          //if(qptr->op!=NOP){    
+            if( qptr->src1 && qptr->src1->optype==SYMTBL_PTR && qptr->src1->val.stptr == qptrLoop->dst->val.stptr){//&& qptr->src1->optype== SYMTBL_PTR &&  qptrLoop->dst->val.stptr->type == qptr->src1->val.stptr->type){
+                qptr->src1 = qptrLoop->src1;
+            }
+            if( qptr->src2 && qptr->src2->optype==SYMTBL_PTR && qptr->src2->val.stptr == qptrLoop->dst->val.stptr){//&& qptr->src2->optype== SYMTBL_PTR &&  qptrLoop->dst->val.stptr->type == qptr->src2->val.stptr->type){
+                qptr->src2 = qptrLoop->src1;
+            }
+
+          //}
+          break;
+
+          default: break;
+          }
+        
+        if(qptr->dst && qptr->dst->optype==SYMTBL_PTR)
+            if( qptrLoop->dst->val.stptr == qptr->dst->val.stptr ||  qptrLoop->src1->val.stptr == qptr->dst->val.stptr) break;        
+
+        }
+      }  
+    
+    }
+}
+
+
 static void copyPropForBlock(int i){
-    Quad *qptr, *qptr_next_ins=NULL;   
-    for(qptr= blockList[i]->leader; qptr && qptr != leadersList[i+1]; qptr = qptr->next){
+    Quad *qptr, *qptr_next_ins=NULL, *qptr_next_next_ins = NULL;   
+    for(qptr= blockList[i]->leader; qptr && qptr != blockList[i]->tail_leader; qptr = qptr->next){//leadersList[i+1] is replaced by blockList[i]->tail_leader
       switch(qptr->op){ 
         //if(qptr->op==MOVE)
-        case MOVE: {
+        case MOVE: 
             for(qptr_next_ins=qptr->next; qptr_next_ins!=NULL && qptr_next_ins->op==NOP; qptr_next_ins = qptr_next_ins->next){
             }
             if(qptr_next_ins!=NULL && qptr_next_ins->op==MOVE &&  qptr->dst->val.stptr->type == qptr_next_ins->dst->val.stptr->type && qptr->dst->val.stptr == qptr_next_ins->src1->val.stptr){
                 qptr_next_ins->src1= qptr->src1;
             }
-          }
-          break;
+            if(qptr_next_ins!=NULL)// && qptr_next_ins->op==MOVE &&  qptr->dst->val.stptr->type == qptr_next_ins->dst->val.stptr->type && qptr->dst->val.stptr == qptr_next_ins->src1->val.stptr){
+                {
+                    if(qptr_next_ins->op==ADD_OP || qptr_next_ins->op==SUB_OP || qptr_next_ins->op==MUL_OP || qptr_next_ins->op==DIV_OP)
+                    {
+                        if(qptr->dst->val.stptr == qptr_next_ins->src1->val.stptr)
+                            qptr_next_ins->src1= qptr->src1;
+                        if(qptr->dst->val.stptr == qptr_next_ins->src2->val.stptr)
+                            qptr_next_ins->src2= qptr->src1;                                                
+                    }
+                }
+
+            /*
+            if(qptr->dst != qptr_next_ins->dst)  // definition of qptr reaches to qptr_next_next_ins
+            {  
+                qptr_next_next_ins = qptr_next_ins->next;
+                if(qptr_next_next_ins->op==ADD_OP || qptr_next_next_ins->op==SUB_OP || qptr_next_next_ins->op==MUL_OP || qptr_next_next_ins->op==DIV_OP)
+                {                
+                    if(qptr->dst->val.stptr == qptr_next_next_ins->src1->val.stptr)
+                        qptr_next_next_ins->src1= qptr->src1;
+                    if(qptr->dst->val.stptr == qptr_next_next_ins->src2->val.stptr)
+                        qptr_next_next_ins->src2= qptr->src1;   
+                }                                             
+            }*/
+            break;
 
         case ADD_OP:
+            if(qptr->src1->optype==INTEGER && qptr->src2->optype==INTEGER){
+                qptr->op = MOVE;
+                qptr->src1->val.numval = qptr->src1->val.numval + qptr->src1->val.numval ;
+            }
+            break;
+
         case SUB_OP:
+            if(qptr->src1->optype==INTEGER && qptr->src2->optype==INTEGER){
+                qptr->op = MOVE;
+                qptr->src1->val.numval = qptr->src1->val.numval - qptr->src1->val.numval ;
+            }
+            break;
+
         case MUL_OP:
+            if(qptr->src1->optype==INTEGER && qptr->src2->optype==INTEGER){
+                qptr->op = MOVE;
+                qptr->src1->val.numval = qptr->src1->val.numval * qptr->src1->val.numval ;
+            }
+            break;
+
         case DIV_OP:
-          
-          break;
+            if(qptr->src1->optype==INTEGER && qptr->src2->optype==INTEGER){
+                qptr->op = MOVE;
+                qptr->src1->val.numval = qptr->src1->val.numval / qptr->src1->val.numval ;
+            }
+            break;
+
         default: break;
 
       }  
@@ -293,7 +380,7 @@ static void initLiveSet(int blockNumber){
 }
 
 static void dumpLiveSET(void){
-    for(int i=0;i<MAX_LOCAL_VARS;i++){
+    for(int i=0;i< Total_Local_Max;i++){  //  MAX_LOCAL_VARS replaced by Total_Local_Max
         liveSet[i]=NULL;
     }
 }
@@ -301,7 +388,7 @@ static void dumpLiveSET(void){
 static bool checkLive(symtabnode *sym_tab_Ptr){
     if(sym_tab_Ptr->scope==Global) return true; //Global vars are always live => always return true
 
-    for(int i=0;i<MAX_LOCAL_VARS;i++){
+    for(int i=0;i<Total_Local_Max;i++){  //  MAX_LOCAL_VARS replaced by Total_Local_Max
         if(liveSet[i]==sym_tab_Ptr) {
             return true;
         }
@@ -313,7 +400,7 @@ static void insertIntoLiveSet(symtabnode *sym_tab_Ptr){
     if(sym_tab_Ptr->scope==Global) return; //Global vars are always live => no need to deal with
     if(checkLive(sym_tab_Ptr)) return;
 
-    for(int i=0;i<MAX_LOCAL_VARS;i++){
+    for(int i=0;i<Total_Local_Max;i++){ //  MAX_LOCAL_VARS replaced by Total_Local_Max
         if(liveSet[i]==NULL) {
             liveSet[i]=sym_tab_Ptr;
             return;
@@ -324,7 +411,7 @@ static void insertIntoLiveSet(symtabnode *sym_tab_Ptr){
 static void removeFromLiveSet(symtabnode *sym_tab_Ptr){
     if(sym_tab_Ptr->scope==Global) return; //Global vars are always live => no need to deal with
 
-    for(int i=0;i<MAX_LOCAL_VARS;i++){
+    for(int i=0;i<Total_Local_Max;i++){ //  MAX_LOCAL_VARS replaced by Total_Local_Max
         if(liveSet[i]==sym_tab_Ptr) {
             liveSet[i]=NULL;
             return;
@@ -463,7 +550,7 @@ static void initDefUseList(void){
                     D = removeFromList(D, qptr->src1->val.stptr);
                     U = insertToList(U, qptr->src1->val.stptr);
                 }                
-                if(qptr->src2->optype == SYMTBL_PTR && qptr->src1->val.stptr->type != t_Func){
+                if(qptr->src2->optype == SYMTBL_PTR && qptr->src2->val.stptr->type != t_Func){
                     D = removeFromList(D, qptr->src2->val.stptr);
                     U = insertToList(U, qptr->src2->val.stptr);
                 }                 
@@ -771,7 +858,7 @@ static bool noBranchJump(Op op){
 
 
 static void makeInterfGraph(void){
-    getLocalVars();
+    //getLocalVars();
     initializeNodes();
 
     initDefUseList();
@@ -796,7 +883,7 @@ static void makeInterfGraph(void){
         
         //for each live range LRi ∈ LiveNow :
                        //add the edge (LRx, LRi)
-            for(int k=0;k<MAX_LOCAL_VARS;k++){
+            for(int k=0;k<Total_Local_Max;k++){  //  MAX_LOCAL_VARS replaced by Total_Local_Max
                 if(liveSet[k]!=NULL) {
                     liveNodeIndex = getNodeIndex(liveSet[k]);
                     makeEdge(liveNodeIndex, dstNodeIndex);

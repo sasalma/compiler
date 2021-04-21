@@ -11,6 +11,8 @@
 
 #define HASHTBLSZ 256
 extern symtabnode *SymTab[2][HASHTBLSZ];
+extern int Total_Local_Max;
+
 
 
 static void destructor(void);
@@ -210,6 +212,7 @@ static void constructInterfGraph(tnode *ast){
 }
 
 void makeEdge(int i, int j){
+    if(i==j) return;
     if(i==-1 || j==-1) return; // either one or both are not vertex of the graph
     if(chkEdgeAlready(i,j)) return;
     pushToAdjList(i,j);
@@ -244,6 +247,7 @@ void makeEdge(int i, int j){
 
 
 static void updateCost( int index, int frequency){
+    if(!nodeList[index]) return;
     nodeList[index]->cost += frequency;
 }
 
@@ -289,6 +293,8 @@ void getLocalVars()
     }
   }
     //printNodes();
+
+    Total_Local_Max = totalNodes + 4;
 }
 
 
