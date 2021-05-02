@@ -14,8 +14,9 @@ int totalMapping;*/
 
 static tnode *ast;
 static symtabnode *liveRangeNodes[MAX_LOCAL_VARS];
-static int totalNodes, totalAvailRegs=15;
-static char registerAddress[15][4] = { "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t3", "$t4", "$t5", "$t6", "$t7", "$t8", "$t9"};
+static int totalNodes, totalAvailRegs, totalRegister=18, totalUsedRegister=0;
+static char registerAddress[18][4] = { "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t3", "$t4", "$t5", "$t6", "$t7", "$t8", "$t9","$a1", "$a2", "$a3"};
+static bool registerAvailable[18] = {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true };
 struct graphNode{ 
     symtabnode *sptr;
     bool isLive; // isLive is true if the node is live in the graph and not spilled yet;

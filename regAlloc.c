@@ -12,6 +12,9 @@
 #define HASHTBLSZ 256
 extern symtabnode *SymTab[2][HASHTBLSZ];
 extern int Total_Local_Max;
+static char* LoadIns[3] = {"lb", "lw", "lw"};
+static char* StoreIns[3] = {"sb", "sw", "sw"};
+
 
 
 
@@ -25,6 +28,8 @@ static bool isSpillRequired(void);
 static int getDegree(GraphNode *node);
 static void sendNodeToStack();
 static void spillNode(void);
+static void spillNodeSimple(void);
+
 
 
 
@@ -38,6 +43,10 @@ void initializeNodes();
 void getLocalVars();
 
 
+void storeToStackFrmReg(void); // before calling a function  
+void loadFromStackToReg(void); // after returning from a function
+static int getRegIndex(symtabnode *sptr);
+
 // print routiens start
 static void printNodes(void);
 static void printGraph(void);
@@ -46,10 +55,12 @@ static void printStack(void);
 
 
 void doRegAllocation(tnode *ast){
+
+
     //printf("do reg alloc here!\n");
     //getLocalVars();
     //initializeNodes();
-    constructInterfGraph(ast);
+    constructInterfGraph(ast); //actually updating cost; interference graph is constructed in optimization.c file
     colorGraph();
 
 
@@ -58,8 +69,18 @@ void doRegAllocation(tnode *ast){
 }
 
 static void destructor(void){
+    int index;
     statckTop = NULL;
-    
+    for(int i=0;i<totalNodes;i++){
+        index = nodeList[i]->registerIndex;
+        if(index!=-1){
+            if(registerAvailable[index]){
+                totalUsedRegister++;            
+                registerAvailable[index] = false;
+            }
+        }
+        nodeList[i] = NULL;
+    }    
     totalNodes = 0;
 }
 
@@ -69,12 +90,17 @@ static void destructor(void){
  *                           Graph  Coloring                             *
  * **********************************************************************/
 static void colorGraph(void){
-    int k = totalAvailRegs;
+    int k, totalIteration =0;
+    totalAvailRegs = totalRegister - totalUsedRegister;
+    //k = totalAvailRegs;
     while(!isGraphEmpty()){
         sendNodeToStack();
-        if(isSpillRequired()) spillNode();            
+        if(isSpillRequired()) spillNode();    // spillNode();  //  spillNodeSimple();
+        totalIteration++;          
+    //printf("\nso far iterations : %d", totalIteration);
+        if(totalIteration>=100) break;
     }
-
+    //printf("\nTotal iterations : %d", totalIteration);
     assignRegisters();
 }
 
@@ -88,17 +114,15 @@ static void assignRegisters(void){
         stackPtr->node->sptr->registerAddr = registerAddress[i];
       //  printf("\n VAR %s is in REGISTER %s", stackPtr->node->sptr->name, stackPtr->node->sptr->registerAddr  );        
         stackPtr = stackPtr->next;
-        //mapping[totalMapping].sptrVar = stackPtr->node->sptr;
-        //mapping[totalMapping].varRegister = registerAddress[i];
 
-        //totalMapping++;
     }
 }
 
 static int getRegisterNumber( struct stack *stackPtr ){
     bool isAvailable;
     struct adjacencyList *tmp;
-    for(int i=0; i<totalAvailRegs; i++){
+    for(int i=0; i<totalRegister; i++){//totalAvailRegs; i++){
+      if(registerAvailable[i])  {
         isAvailable = true;        
         for(tmp = stackPtr->node->adjList;tmp; tmp = tmp->next){
             if(tmp->node->registerIndex == i) {
@@ -107,7 +131,9 @@ static int getRegisterNumber( struct stack *stackPtr ){
             }
         }
 
-        if(isAvailable) return i;
+        if(isAvailable) {   return i;}
+      }
+
     }
     return -1;
 }
@@ -154,6 +180,23 @@ static void sendNodeToStack(){
     }
     
    // printStack();
+}
+
+
+static void spillNodeSimple(void){
+    float minCostPerDeg=0, costPerDeg;
+    GraphNode *nodePtr;
+    int spillNodeIndex=-1, degree;
+
+    for(int i=0; i<totalNodes; i++){
+        nodePtr = nodeList[i];
+        if(nodePtr->isLive ){
+            spillNodeIndex = i;
+            break;
+        }
+    }
+
+    if(spillNodeIndex!=-1) nodeList[spillNodeIndex]->isLive = false;
 }
 
 
@@ -295,6 +338,35 @@ void getLocalVars()
     //printNodes();
 
     Total_Local_Max = totalNodes + 4;
+}
+
+
+void storeToStackFrmReg(void){
+
+    symtabnode *s0;
+    int i, regN;  
+    printf("\n    # Before function call store values of local variables to stack from register\n");  
+    for (i = 0; i < HASHTBLSZ; i++) {
+        for (s0 = SymTab[Local][i]; s0 != NULL; s0 = s0->next) {
+            if (s0->argpos == 0) {
+                printf("\n    %s (loc: %d); ", s0->name, s0->offset);
+                regN = getRegIndex(s0);
+                if(regN != -1)
+                    printf("\n    %s %s, %d($fp)     #%s", StoreIns[s0->type], registerAddress[regN],  s0->offset, s0->name);
+            }
+        }
+    }  
+
+  printf("\n\n");  
+}
+
+static int getRegIndex(symtabnode *sptr){
+    for(int i=0;i<totalNodes;i++){
+        if(sptr==nodeList[i]->sptr && nodeList[i]->isLive){
+            return nodeList[i]->registerIndex;
+        }
+    }
+    return -1;
 }
 
 

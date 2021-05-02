@@ -163,7 +163,7 @@ static void copyPropagation(void){
 static void  copyPropForBlock_revised(int i){
     Quad *qptr, *qptrLoop;
     for(qptrLoop = blockList[i]->leader; qptrLoop && qptrLoop != blockList[i]->tail_leader ; qptrLoop = qptrLoop->next){ //leadersList[i+1] is replaced by blockList[i]->tail_leader 
-      if(qptrLoop->op==MOVE)
+      if(qptrLoop->op==MOVE && qptrLoop->dst->val.stptr->scope==Local && qptrLoop->dst->val.stptr->type!=t_Array && qptrLoop->dst->optype!=ADDR && qptrLoop->src1->optype!=ADDR) // do nothing if global or array element
       {        
         for(qptr = qptrLoop->next; qptr && qptr != blockList[i]->tail_leader; qptr = qptr->next){//leadersList[i+1] is replaced by blockList[i]->tail_leader
           switch(qptr->op){
@@ -172,15 +172,14 @@ static void  copyPropForBlock_revised(int i){
           case SUB_OP:
           case MUL_OP:
           case DIV_OP:
-          //if(qptr->op!=NOP){    
+          if(qptrLoop->dst->val.stptr->type == qptr->dst->val.stptr->type){    
             if( qptr->src1 && qptr->src1->optype==SYMTBL_PTR && qptr->src1->val.stptr == qptrLoop->dst->val.stptr){//&& qptr->src1->optype== SYMTBL_PTR &&  qptrLoop->dst->val.stptr->type == qptr->src1->val.stptr->type){
                 qptr->src1 = qptrLoop->src1;
             }
             if( qptr->src2 && qptr->src2->optype==SYMTBL_PTR && qptr->src2->val.stptr == qptrLoop->dst->val.stptr){//&& qptr->src2->optype== SYMTBL_PTR &&  qptrLoop->dst->val.stptr->type == qptr->src2->val.stptr->type){
                 qptr->src2 = qptrLoop->src1;
             }
-
-          //}
+          }
           break;
 
           default: break;
@@ -857,6 +856,8 @@ static bool noBranchJump(Op op){
 }
 
 
+
+
 static void makeInterfGraph(void){
     //getLocalVars();
     initializeNodes();
@@ -875,9 +876,19 @@ static void makeInterfGraph(void){
     for(qptr= blockList[i]->tail_leader; ; qptr = qptr->previous){
         // check live set and make edges as necessary
         dstNodeIndex = src1NodeIndex = src2NodeIndex = -1;
-        if(qptr->dst && qptr->dst->optype == SYMTBL_PTR)  
+        if(qptr->op==RETRIEVE){
+            dstNodeIndex = getNodeIndex(qptr->src1->val.stptr);
+            for(int k=0;k<Total_Local_Max;k++){  //  MAX_LOCAL_VARS replaced by Total_Local_Max
+                if(liveSet[k]!=NULL) {
+                    liveNodeIndex = getNodeIndex(liveSet[k]);
+                    makeEdge(liveNodeIndex, dstNodeIndex);
+                }
+            }
+        }        
+        else if(qptr->dst && qptr->dst->optype == SYMTBL_PTR)  
         {
-            dstNodeIndex = getNodeIndex(qptr->dst->val.stptr);
+          dstNodeIndex = getNodeIndex(qptr->dst->val.stptr);
+          if(dstNodeIndex != -1){ // not a global var
         //if(qptr->src1 && qptr->src1->optype == SYMTBL_PTR)  src1NodeIndex = getNodeIndex(qptr->src1->val.stptr);
         //if(qptr->src2 && qptr->src2->optype == SYMTBL_PTR)  src2NodeIndex = getNodeIndex(qptr->src2->val.stptr);
         
@@ -889,6 +900,7 @@ static void makeInterfGraph(void){
                     makeEdge(liveNodeIndex, dstNodeIndex);
                 }
             }
+          }
         } 
 
 
@@ -903,10 +915,11 @@ static void makeInterfGraph(void){
                         removeFromLiveSet(qptr->dst->val.stptr);
                     if(qptr->dst->optype == DEREF )  
                         insertIntoLiveSet(qptr->dst->val.stptr);
+                }        
 
                     if(qptr->src1->optype==SYMTBL_PTR  || qptr->src1->optype == DEREF)
                         insertIntoLiveSet(qptr->src1->val.stptr);
-                }
+                //}
                 break;
                 
             case ADD_OP:

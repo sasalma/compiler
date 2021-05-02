@@ -2,117 +2,173 @@
 Test-1
 _______________________________________________________________________
 
+/* find min and max among 3 numbers 
+*/
 extern void println(int n);
 
-int u, w;
+void main(void) 
+{
+  int i, j, k, min, max;
+  i=49;
+  j=3;
+  k=88;
+  min = i;
+  max = i;
 
-void f(void) {
-  int v, j;
-  char i;
-
-  for (i = 0; i < 100; i = i + 1) {
-    for (j = 0; j < i; j = j + 1) {
-      u = 1;
-      v = u;
-      w = v;
-      u = w;
-      v = u;
-      w = v;
-      u = w;
-      v = u;
-      w = v;
-    }
+  if(min >j) 
+  {
+    min = j;
   }
+  else
+  {
+    max = j;
+  }
+
+  if(min >k)
+  {
+    min = k;
+  }
+  if(max<k) 
+  {
+    max = k;
+  }
+
+  println(min);
+  println(max);
 }
 
-void main(void) {
-  f();
-
-  println(u);
-  println(w);
-}
 
 
+Using Chaitin's algorithm 
+for spilling a node.
+-----------------------									         
+				#instructions 	  #reads    #writes	exe_time  	opt_time	 
+                                ___________________________________________(ms)___________(ms)_______
+	
+● Without Optimization			78	     20		14	    8
 
-Without optimization=>
-Stats -- #instructions : 220270
-         #reads : 70112  #writes 64959  #branches 10311  #other 74888
+● -Oregalloc				63	      5		4	    7		   0	
 
+● -Olocal -Oregalloc			68	      5	        4	    8              1
 
-With local optimization=>
-Stats -- #instructions : 195520
-         #reads : 25462  #writes 64959  #branches 10311  #other 94788
+● -Oglobal -Oregalloc			63	      5	        4	    8              1
 
-With global optimization=>
-Stats -- #instructions : 220270
-         #reads : 70112  #writes 64959  #branches 10311  #other 74888
-
-With both optimization=>
-Stats -- #instructions : 155720
-         #reads : 25462  #writes 45059  #branches 10311  #other 74888
+● -Olocal -Oglobal -Oregalloc		60	      5	        4	    12             4
 
 
 
-With both optimization (changing order: global then local) =>
-Stats -- #instructions : 195520
-         #reads : 25462  #writes 64959  #branches 10311  #other 94788
 
 
 
-Cost analysis:
-______________
-Local optimization decreased the # of instruction by 11% and memory read by 64%. However, it increase other operation resulting increase in cost.
-Global optimization has no effect on this i/p.
-However, when we do both optimization together by doing local and then global optimization, it decreased the # of instruction by 29%, memory read by 64% and memory write by 31% without increasing other operation (no increase in cost).
-When we do both optimization together by doing global and then local optimization, it behaves like doing only local optimization.
+Using Simple algorithm 
+for spilling a node.
+-----------------------										                  
+				#instructions 	  #reads    #writes	exe_time  	opt_time	 
+                                ___________________________________________(ms)___________(ms)_______
+	
+● -Oregalloc				63	      5		4	    9		   2	
+
+● -Olocal -Oregalloc			68	      5	        4	    9              2
+
+● -Oglobal -Oregalloc			63	      5	        4	    9              2
+
+● -Olocal -Oglobal -Oregalloc		60	      5	        4	    8              0
+
+
+
+
+Benefit: 
+-------
+#instructions decreased by 23%  using  -Olocal -Oglobal -Oregalloc
+load/read decreased by 75%
+Store/write decreased by 71%
+_______________________________________________________________________
+_______________________________________________________________________
+
+
 
 
 
 
 Test-2
 _______________________________________________________________________
-extern void println(int x);
+/* find the summation of 2^n for n = 0,1,2,...,n */
+int x;
 
-void main(void) {
-    int x, y;
-    x = 12;
-    y = x; y = x; y = x; y = x; y = x;
-    y = x; y = x; y = x; y = x; y = x;
-    y = x; y = x; y = x; y = x; y = x;
-    y = x; y = x; y = x; y = x; y = x;
-    y = x; y = x; y = x; y = x; y = x;
-    y = x; y = x; y = x; y = x; y = x;
-    y = x; y = x; y = x; y = x; y = x;
-    y = x; y = x; y = x; y = x; y = x;
-    y = x; y = x; y = x; y = x; y = x;
-    y = x; y = x; y = x; y = x; y = x;  
+int f(int i)
+{
+  int y;
 
-    println(x);  
+  y = 1;
+  while (i >= 0) {
+    x = x+y;
+    y = 2*y;
+    i = i-1;
+  }
+
+  return x;
+}
+
+extern void println (int n);
+
+void main(void)
+{
+  int a;
+
+  x = 0;
+  a = f(7);
+
+  println(a);
 }
 
    
       
-Without optimization=>
-Stats -- #instructions : 135
-         #reads : 56  #writes 55  #branches 5  #other 19
+Using Chaitin's algorithm 
+for spilling a node.
+-----------------------	
+				#instructions 	  #reads    #writes	exe_time  	opt_time
+                                ___________________________________________(ms)___________(ms)____
+	
+● Without Optimization			318	    102		86	    8
 
-With local optimization=>
-Stats -- #instructions : 135
-         #reads : 54  #writes 55  #branches 5  #other 21
+● -Oregalloc				224	     32		23	    8		   0	
 
-With global optimization=>
-Stats -- #instructions : 35
-         #reads : 6  #writes 5  #branches 5  #other 19
+● -Olocal -Oregalloc			241	     32	        23	    9              1
 
-With both optimization=>
-Stats -- #instructions : 33
-         #reads : 5  #writes 4  #branches 5  #other 19
+● -Oglobal -Oregalloc			224	     32	        23	    9              1
 
-Cost analysis:
-______________
-Local optimization did not decrease the # of instruction. It decreased very little memory read by 3.6%.
-Global optimization decreased # of instruction by 75%, # of reads by 89.3% and # of writes by 91%.
-When we do both optimization together, it decreased  even more of number of instructions, number of reads and number of writes.
+● -Olocal -Oglobal -Oregalloc		207	     32	        23	    8              0
+
+
+
+
+
+
+Using Simple algorithm 
+for spilling a node.
+-----------------------										                  
+				#instructions 	  #reads    #writes	exe_time  	opt_time	 
+                                ___________________________________________(ms)___________(ms)_______
+	
+● -Oregalloc				224	     32		23	    8		   0	
+
+● -Olocal -Oregalloc			241	     32	        23	    8              0
+
+● -Oglobal -Oregalloc			224	     32	        23	    7              0
+
+● -Olocal -Oglobal -Oregalloc		207	     32	        23	    8              0
+
+
+
+Benefit: 
+-------
+#instructions decreased by 35% using -Olocal -Oglobal -Oregalloc
+load/read decreased by 69%
+Store/write decreased by 73%
+_______________________________________________________________________
+_______________________________________________________________________
+
+
 
 
 
@@ -120,52 +176,56 @@ When we do both optimization together, it decreased  even more of number of inst
 
 Test-3
 _______________________________________________________________________
+/* find the factorial of n */
+
 extern void println(int x);
 
-void main(void) {
-    int x, y;
-
-    for (x = 0; x < 1000; x = x + 1) {
-        y = 0;
-        if (x > 0) {
-            y = 2*y + 1;
-	    y = 2*y + 1;
-	}
-	else {
-	    y = 2*y - 1;
-	    y = 2*y / 3;
-	}
-        y = 2*y + 1;
-        y = 2*y + 1;
-        y = 2*y + 1;
+int fact(int x) {
+    if (x > 0) {
+        return x * fact(x-1);
     }
-
-    println(x);  
+    else {
+        return 1;
+    }
 }
 
+void main(void) {
+    int f;
 
-      
-Without optimization=>
-Stats -- #instructions : 96044
-         #reads : 33008  #writes 32006  #branches 4008  #other 27022
+    f = fact(7);
 
-With local optimization=>
-Stats -- #instructions : 96044
-         #reads : 32007  #writes 32006  #branches 4008  #other 28023
+    println(f);
+}
+    
 
-With global optimization=>
-Stats -- #instructions : 22042
-         #reads : 7008  #writes 5006  #branches 4007  #other 6021
+  
+Using Chaitin's algorithm 
+for spilling a node.
+-----------------------	
+				#instructions 	  #reads    #writes	exe_time  	opt_time
+                                ___________________________________________(ms)___________(ms)____
+	
+● Without Optimization			292	     82		67	    7
 
-With both optimization=>
-Stats -- #instructions : 22040
-         #reads : 7007  #writes 5005  #branches 4007  #other 6021
+● -Oregalloc				246	     42		27	    8		   1	
 
-Cost analysis:
-______________
-Local optimization did not decrease the # of instruction or write. It decreased memory reads by 3%.
-Global optimization decreased  number of instructions by 77%, number of reads by 79% and number of writes by 84.4%.
-When we do both optimization together, it decreased the number of instructions, number of reads and number of writes almost same as global optimization.
+● -Olocal -Oregalloc			253	     42	        27	    8              1
+
+● -Oglobal -Oregalloc			246	     42	        27	    7              0
+
+● -Olocal -Oglobal -Oregalloc		239	     42	        27	    7              0
+
+
+
+Benefit: 
+-------
+#instructions decreased by 18% using -Olocal -Oglobal -Oregalloc
+load/read decreased by 49%
+Store/write decreased by 60%
+_______________________________________________________________________
+_______________________________________________________________________
+
+
 
 
 
@@ -174,59 +234,60 @@ When we do both optimization together, it decreased the number of instructions, 
 
 Test-4
 _______________________________________________________________________
+/* find the n-th number in fibonachchi series
+1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765, 10946, ...
+*/
 extern void println(int x);
 
-int one(int z) {
-    /* the assignments to z in this function are dead */
-    z = z+1;
-    z = z*2;
-    z = z-1;
-    z = 2*z+1;
-    z = 3*z;
-    
-    return 1;
+int fibonachchi(int n) {
+  int x1, x2, i, temp;
+  x1 = 1;
+  x2 = 1;
+
+  for(i=0;i<n-2; i= i+1){
+    temp = x1 + x2;
+    x1 = x2;
+    x2 = temp;
+  }
+  return temp;
 }
 
 void main(void) {
-    int x, y;
+    int f;
 
-    /* the assignments to y in this function are dead */
-    for (x = 0; x < 100; x = x+1) {
-        y = 12;
-        y = y+1;
-	y = 2*y;
-	y = one(x);    /* function call: liveness of y should not be affected */
-	y = 3*y+1;
-	y = y+2;	
-    }
+    f = fibonachchi(15);
 
-    println(x);
+    println(f);
 }
 
 
-Without optimization=>
-Stats -- #instructions : 12442
-         #reads : 4208  #writes 4306  #branches 407  #other 3521
-
-With local optimization=>
-Stats -- #instructions : 12442
-         #reads : 4107  #writes 4306  #branches 407  #other 3622
-
-With global optimization=>
-Stats -- #instructions : 3442
-         #reads : 908  #writes 906  #branches 407  #other 1221
-
-With both optimization=>
-Stats -- #instructions : 3440
-         #reads : 907  #writes 905  #branches 407  #other 1221
 
 
-Cost analysis:
-______________
-Local optimization did not decrease the # of instruction nor number of writes. It eliminates memory reads by 2.4%.
-Global optimization decreased  number of instructions by 72.3% , number of reads by 78.4% and number of writes by 79%.
-When we do both optimization together, it decreased the number of instructions, number of reads and number of writes almost same as global optimization.
+Using Chaitin's algorithm 
+for spilling a node.
+-----------------------	
+				#instructions 	  #reads    #writes	exe_time  	opt_time
+                                ___________________________________________(ms)___________(ms)____
+	
+● Without Optimization			452	    173		134	    9
 
+● -Oregalloc				260	     20		 6	    8		   0	
+
+● -Olocal -Oregalloc			289	     20		 6	    8		   0
+
+● -Oglobal -Oregalloc			260	     20		 6	    9              1
+
+● -Olocal -Oglobal -Oregalloc		231	     20		 6	    9              1
+
+
+
+Benefit: 
+-------
+#instructions decreased by 49% using -Olocal -Oglobal -Oregalloc
+load/read decreased by 88%
+Store/write decreased by 96%
+_______________________________________________________________________
+_______________________________________________________________________
 
 
 
@@ -236,66 +297,103 @@ When we do both optimization together, it decreased the number of instructions, 
 
 Test-5
 _______________________________________________________________________
-int a, b, c, d, e, f, g, h, i, j;
-int res;
 
+/* nested while loops */
 extern void println (int n);
 
 void main(void)
 {
-  a = 1; b = 2; c = 3; d = 4; e = 5;
-  f = 6; g = 7; h = 8; i = 9; j = 10;
-
-  if (a <= b && b <= c && c <= d && d <= e && 
-      !!!(e > f || f > g || g > h || h > i || i > j))
-    res = 1111;
-  else
-    res = 2222;
+  int a, b, c, d, e, LIM;
+  int res;
+  a = 0; LIM = 3;
+  res = 0;
+  
+  while (a < LIM) {
+    b = 0;
+    while (b < LIM) {
+      c = 0;
+      while (c < LIM) {
+	d = 0;
+	while (d < LIM) {
+	  e = 0;
+	  while (e < LIM) {
+	    res = res + 1;
+	    e = e+1;
+	  }
+	  d = d+1;
+	}
+	c = c+1;
+      }
+      b = b+1;
+    }
+    a = a+1;
+  }
   println(res);
 }
 
 
-Without optimization=>
-Stats -- #instructions : 148
-         #reads : 34  #writes 25  #branches 20  #other 69
 
-With local optimization=>
-Stats -- #instructions : 148
-         #reads : 23  #writes 25  #branches 20  #other 80
+Using Chaitin's algorithm 
+for spilling a node.
+-----------------------	
+				#instructions 	  #reads    #writes	exe_time  	opt_time
+                                ___________________________________________(ms)___________(ms)____
+	
+● Without Optimization			7791	   2914		2067	    7
 
-With global optimization=>
-Stats -- #instructions : 148
-         #reads : 34  #writes 25  #branches 20  #other 69
+● -Oregalloc				4275	     4		 3	    8		   1	
 
-With both optimization=>
-Stats -- #instructions : 126
-         #reads : 23  #writes 14  #branches 20  #other 69
+● -Olocal -Oregalloc			4883	     4		 3	    8		   1
 
+● -Oglobal -Oregalloc			4275	     4		 3	    8		   1
 
-Cost analysis:
-______________
-Local optimization did not decrease the # of instruction nor number of writes. It eliminates memory reads by 32.4%.
-Global optimization did not decrease number of instructions , number of reads or number of writes.
-When we do both optimization together, it decreased the number of instructions by 15%, number of reads by 32.4% and number of writes by 44%.
+● -Olocal -Oglobal -Oregalloc		3667	     4		 3	    8		   1
 
 
-
-
-
-OVERALL cost analysis:
-______________________
-Local optimization often decreases memory read. However, it increases other operations and does not decrease any write operation.
-Global optimization decreases number of instruction, memory read and write at the same time. When we do both optimization local and then global, the compiler performs best. 
-
-
-Peephole Optimization patterns:
-_______________________________
-I have implemented constant copy propagation.
+Benefit: 
+-------
+#instructions decreased by 53% using -Olocal -Oglobal -Oregalloc
+load/read decreased by 99.86%
+Store/write decreased by 99.85%
+_______________________________________________________________________
+_______________________________________________________________________
 
 
 
-Interactions between local and global optimizations:
-____________________________________________________
-Local optimization with copy propagation increases opportunity of increase in dead code. So when we do local optimization and then global optimization the compiler can decrease number of instructions, memory read and write as best. 
+
+
+
+
+
+***********************************************************************
+_______________________________________________________________________
+
+Overall Cost analysis:
+---------------------
+Optimization along with register allocation takes negligible amount of time. Moreover, it sometimes decreases runtime 
+by reducing other operations to do. 
+
+
+Overall Benefit analysis:
+-------------------------
+Register allocation decreases loads and stores significantly and also decreases number of operations of a program. There 
+is no impact of optimization on decreasing loads and stores. However optimization along with register allocation decreases 
+number of operations of a program.
+
+
+Impact of the different spill strategies:
+-----------------------------------------
+I have tried a simple algorithm to spill a node: spill the first alive one in the list. The performance observed using this 
+algorithm is as same as using Chaitin's algorithm. I think spilling any one node works fine for average cases. May be if we 
+use only cost of the nodes to spill that will do better than my simple one, and will show less performance than Chaitin's 
+algorithm. But there are some (worst) cases, where my simple algorithm will do bad performance. The improvement 
+Of Chaitin's algorithm by Briggs, where the node is sent to the stack instead of spill will do even better performance.
+
+
+
+
+
+
+
 
 

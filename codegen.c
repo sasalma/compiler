@@ -18,6 +18,9 @@
 extern void doOptimization(tnode *ast); // added by sammi
 extern void doRegAllocation(tnode *ast); // added by sammi
 
+static void storeToStackFrmReg(void); // added by sammi
+static void loadFromStackToReg(void);//added by sammi
+
 
 
 /* 
@@ -143,11 +146,30 @@ static StrTabNode *string_tbl = NULL, *str_tmp;
  * function definition, generate 3-address code for it, then use the generated 
  * 3-address code to generate MIPS asm code that is written out to stdout.
  */
+#define HASHTBLSZ 256
+extern symtabnode *SymTab[2][HASHTBLSZ];
+static bool chkArray(symtabnode *sptr);
+extern bool optLocalFlag, optGlobalFlag;
+
+
 void gen_code(tnode *ast, symtabnode *sptr) {
   curr_fn_symtbl = sptr;
   gen_3addr_code_funcbody(ast);
 
   //print_instruction_frequency(ast);
+  bool arrayFlag = chkArray(sptr);
+
+  if(optGlobalFlag && optLocalFlag){
+      if(arrayFlag){
+        optGlobalFlag = false;
+        optLocalFlag = false;
+      }
+  }
+
+  if(optRegAllocFlag){
+      if(arrayFlag)
+        optRegAllocFlag = false;
+  }
 
   doOptimization(ast);
 
@@ -155,6 +177,30 @@ void gen_code(tnode *ast, symtabnode *sptr) {
       //doRegAllocation(ast);
   
   gen_mips_code(ast);
+}
+
+
+
+
+static bool chkArray(symtabnode *FnPtr){//added by sammi
+  symtabnode *sptr;
+    int i;
+    for (i = 0; i < HASHTBLSZ; i++) {
+        for (sptr = SymTab[Global][i]; sptr != NULL; sptr = sptr->next) {
+            if(sptr->type==t_Array) return true;
+        }
+        for (sptr = SymTab[Local][i]; sptr != NULL; sptr = sptr->next) {
+            if(sptr->type==t_Array) return true;
+        }
+    }
+
+    sptr = FnPtr->formals;
+    while(sptr){
+      if(sptr->type==t_Array) return true;
+      sptr=sptr->next;
+    }
+
+    return false;
 }
 
 /* 
@@ -964,6 +1010,9 @@ static void gen_mips_code(tnode *ast) {
       break;
       
     case CALL:
+      //if( strcmp( qptr->src1->val.stptr->name, "println") !=0 )
+      //  storeToStackFrmReg();  // added by sammi
+
       gen_mips_call(qptr);
       break;
       
@@ -972,6 +1021,8 @@ static void gen_mips_code(tnode *ast) {
       break;
       
     case RETRIEVE:
+      //if( strcmp( qptr->src1->val.stptr->name, "println") !=0 )
+       // loadFromStackToReg();  // added by sammi    
       gen_mips_retrieve(qptr);
       break;
       
@@ -990,7 +1041,15 @@ static void gen_mips_move(Quad *qptr) {
   assert(qptr->dst->optype == SYMTBL_PTR || qptr->dst->optype == DEREF);
   symtabnode *stptr = (qptr->dst->val).stptr;
   
-  gen_mips_load(qptr->src1, "t", 0);
+  char *src1_reg;  
+  if(qptr->src1->optype==SYMTBL_PTR && qptr->src1->val.stptr->scope==Local && qptr->src1->val.stptr->registerAddr!=NULL){
+     src1_reg = qptr->src1->val.stptr->registerAddr;
+  }
+  else{
+    src1_reg = "$t0";
+    gen_mips_load(qptr->src1, "t", 0);
+  }
+
 
   switch (qptr->dst->optype) {
   case SYMTBL_PTR:
@@ -998,18 +1057,28 @@ static void gen_mips_move(Quad *qptr) {
     case Local:
       if(stptr->registerAddr!=NULL) //added by sammi
       {
+          /*if(stptr->type==t_Char) {
+            //if(strcmp(src1_reg, "$t0")){
+              printf( "    sll %s, %s, 24 # Takes the 8th bit to the 32th position\n", src1_reg, src1_reg);
+              printf ( "    sra %s, %s, 24 # Takes the 32th bit back to the 8th position preserving the sign\n", src1_reg, src1_reg);
+            //}
+            
+          }*/
+          printf("    move %s, %s\t# %s\n", stptr->registerAddr, src1_reg, stptr->name);  
           if(stptr->type==t_Char) {
-              printf( "    sll $t0, $t0, 24 # Takes the 8th bit to the 32th position\n");
-              printf ( "    sra $t0, $t0, 24 # Takes the 32th bit back to the 8th position preserving the sign\n");
-          }
-          printf("    move %s, $t0\t# %s\n", stptr->registerAddr, stptr->name); 
+            //if(strcmp(src1_reg, "$t0")){
+              printf( "    sll %s, %s, 24 # Takes the 8th bit to the 32th position\n", stptr->registerAddr, stptr->registerAddr);
+              printf ( "    sra %s, %s, 24 # Takes the 32th bit back to the 8th position preserving the sign\n", stptr->registerAddr, stptr->registerAddr);
+            //}
+            
+          }               
       }
       else    
-          printf("    %s $t0, %d($fp)\t# %s\n", StoreIns[stptr->type], stptr->offset, stptr->name);
+          printf("    %s %s, %d($fp)\t# %s\n", StoreIns[stptr->type], src1_reg, stptr->offset, stptr->name);
       break;
 
     case Global:
-      printf("    %s $t0, _%s\n", StoreIns[stptr->type], stptr->name);
+      printf("    %s %s, _%s\n", StoreIns[stptr->type], src1_reg, stptr->name);
       break;
 
     default:
@@ -1060,16 +1129,47 @@ static void gen_mips_arith(Quad *qptr) {
   default: mips_op = "???";
   }
 
-  gen_mips_load(qptr->src1, "t", 0);
-  if (qptr->op == UMINUS_OP) {
-    printf("    %s $t2, $t0\n", mips_op);
+  char *dst_reg;  
+  bool callStoreFlag = true;
+  if(qptr->dst->optype==SYMTBL_PTR && qptr->dst->val.stptr->scope==Local && qptr->dst->val.stptr->registerAddr!=NULL){
+     dst_reg = qptr->dst->val.stptr->registerAddr;
+     callStoreFlag = false;
   }
-  else {
-    gen_mips_load(qptr->src2, "t", 1);
-    printf("    %s $t2, $t0, $t1\n", mips_op);
+  else{
+    dst_reg = "$t2";
   }
 
-  gen_mips_store(qptr->dst, "t", 2);
+
+
+  char *src1_reg;  
+  if(qptr->src1->optype==SYMTBL_PTR && qptr->src1->val.stptr->scope==Local && qptr->src1->val.stptr->registerAddr!=NULL){
+     src1_reg = qptr->src1->val.stptr->registerAddr;
+  }
+  else{
+    src1_reg = "$t0";
+    gen_mips_load(qptr->src1, "t", 0);
+  }
+  //gen_mips_load(qptr->src1, "t", 0);
+
+  if (qptr->op == UMINUS_OP) {
+    printf("    %s %s, %s\n", mips_op, dst_reg, src1_reg);
+  }
+  else {
+    char *src2_reg;  
+    if(qptr->src2->optype==SYMTBL_PTR && qptr->src2->val.stptr->scope==Local && qptr->src2->val.stptr->registerAddr!=NULL){
+      src2_reg = qptr->src2->val.stptr->registerAddr;
+    }
+    else{
+      src2_reg = "$t1";
+      gen_mips_load(qptr->src2, "t", 1);
+    }
+    //gen_mips_load(qptr->src2, "t", 1);
+    
+    printf("    %s %s, %s, %s\n", mips_op, dst_reg, src1_reg, src2_reg);
+  }
+
+  if(callStoreFlag)
+    gen_mips_store(qptr->dst, "t", 2);
 
 }
 
@@ -1085,8 +1185,25 @@ static void gen_mips_if(Quad *qptr) {
   char *mips_op;
   int label_no;
   
-  gen_mips_load(qptr->src1, "t", 0);
-  gen_mips_load(qptr->src2, "t", 1);
+  char *src1_reg;  
+  if(qptr->src1->optype==SYMTBL_PTR && qptr->src1->val.stptr->scope==Local && qptr->src1->val.stptr->registerAddr!=NULL){
+     src1_reg = qptr->src1->val.stptr->registerAddr;
+  }
+  else{
+    src1_reg = "$t0";
+    gen_mips_load(qptr->src1, "t", 0);
+  }
+  //gen_mips_load(qptr->src1, "t", 0);
+
+    char *src2_reg;  
+    if(qptr->src2->optype==SYMTBL_PTR && qptr->src2->val.stptr->scope==Local && qptr->src2->val.stptr->registerAddr!=NULL){
+      src2_reg = qptr->src2->val.stptr->registerAddr;
+    }
+    else{
+      src2_reg = "$t1";
+      gen_mips_load(qptr->src2, "t", 1);
+    }
+  //gen_mips_load(qptr->src2, "t", 1);
 
   switch (qptr->op) {
   case IF_EQ: mips_op = "eq"; break;
@@ -1101,7 +1218,7 @@ static void gen_mips_if(Quad *qptr) {
   Quad *dstins = (qptr->dst->val).insptr;
   label_no = (dstins->src1->val).numval;
 
-  printf("    b%s $t%d, $t%d, %s%d\n", mips_op, 0, 1, LABEL_PREFIX, label_no);
+  printf("    b%s %s, %s, %s%d\n", mips_op, src1_reg, src2_reg, LABEL_PREFIX, label_no);
 
 }
 
@@ -1126,9 +1243,18 @@ static void gen_mips_leave(Quad *qptr) {
 }
 
 static void gen_mips_param(Quad *qptr) {
-  gen_mips_load(qptr->src1, "t", 0);
+  char *src1_reg;  
+  if(qptr->src1->optype==SYMTBL_PTR && qptr->src1->val.stptr->scope==Local && qptr->src1->val.stptr->registerAddr!=NULL){
+     src1_reg = qptr->src1->val.stptr->registerAddr;
+  }
+  else{
+    src1_reg = "$t0";
+    gen_mips_load(qptr->src1, "t", 0);
+  }
+  //gen_mips_load(qptr->src1, "t", 0);
+
   printf("    la $sp, -4($sp)\n");
-  printf("    sw $t0, 0($sp)\n");
+  printf("    sw %s, 0($sp)\n", src1_reg);
 }
 
 static void gen_mips_call(Quad *qptr) {
@@ -1138,7 +1264,16 @@ static void gen_mips_call(Quad *qptr) {
 
 static void gen_mips_ret(Quad *qptr) {
   if (qptr->src1 != NULL) {
-    gen_mips_load(qptr->src1, "v", 0);
+    char *src1_reg;  
+    if(qptr->src1->optype==SYMTBL_PTR && qptr->src1->val.stptr->scope==Local && qptr->src1->val.stptr->registerAddr!=NULL){
+      src1_reg = qptr->src1->val.stptr->registerAddr;
+      printf("   move $v0, %s\n", src1_reg);
+    }
+    else{
+      //src1_reg = "$t0";
+      gen_mips_load(qptr->src1, "v", 0);
+    }
+      //gen_mips_load(qptr->src1, "v", 0);
   }
 
   printf("    la $sp, 0($fp)     # deallocate locals\n");
@@ -1149,7 +1284,11 @@ static void gen_mips_ret(Quad *qptr) {
 }
 
 static void gen_mips_retrieve(Quad *qptr) {
-  gen_mips_store(qptr->src1, "v", 0);
+  if(qptr->src1->optype==SYMTBL_PTR && qptr->src1->val.stptr->scope==Local && qptr->src1->val.stptr->registerAddr!=NULL){
+      printf("\tmove %s, $v0\t# %s", qptr->src1->val.stptr->registerAddr, qptr->src1->val.stptr->name);
+  }
+  else
+    gen_mips_store(qptr->src1, "v", 0);
 }
 
 static void gen_mips_load(Operand *src, char *reg_prefix, int dstreg) {
@@ -1178,9 +1317,9 @@ static void gen_mips_load(Operand *src, char *reg_prefix, int dstreg) {
           type = t_Addr;
       }
 
-      if(sptr->registerAddr!=NULL) //added by sammi
-          printf("    move $%s%d, %s\t# %s\n", reg_prefix, dstreg, sptr->registerAddr, sptr->name); 
-      else
+      //if(sptr->registerAddr!=NULL) //added by sammi
+      //    printf("    move $%s%d, %s\t# %s\n", reg_prefix, dstreg, sptr->registerAddr, sptr->name); 
+      //else
           printf("    %s $%s%d, %d($fp)\t# %s\n",
           LoadIns[type], reg_prefix, dstreg, sptr->offset, sptr->name);
     }
@@ -1250,9 +1389,9 @@ static void gen_mips_store(Operand *dst, char *reg_prefix, int srcreg) {
     else {
       assert(sptr->scope == Local);
 
-      if(sptr->registerAddr!=NULL) //added by sammi
-          printf("    move  %s,  $%s%d\t# %s\n", sptr->registerAddr, reg_prefix, srcreg, sptr->name); 
-      else
+      //if(sptr->registerAddr!=NULL) //added by sammi
+      //    printf("    move  %s,  $%s%d\t# %s\n", sptr->registerAddr, reg_prefix, srcreg, sptr->name); 
+      //else
           printf("    %s $%s%d, %d($fp)\t# %s\n",
 	     StoreIns[sptr->type], reg_prefix, srcreg, sptr->offset, sptr->name);
     }
@@ -1549,4 +1688,46 @@ static void print_instruction_frequency(tnode *ast){
       printf("\nop = %d, Freq = %d", qptr->op, qptr->frequency);
   }
 
+}
+
+
+
+
+static void storeToStackFrmReg(void){//added by sammi
+    symtabnode *s0;
+    int i; 
+    printf("\n    # Before function call store values of local variables to stack from register\n");  
+    for (i = 0; i < HASHTBLSZ; i++) {
+        for (s0 = SymTab[Local][i]; s0 != NULL; s0 = s0->next) {
+            if (s0->argpos == 0) {
+                //printf("\n    %s (loc: %d); ", s0->name, s0->offset);
+                if(s0->registerAddr!=NULL)
+                  printf("\n    %s %s, %d($fp)     #%s", StoreIns[s0->type], s0->registerAddr,  s0->offset, s0->name);
+                
+                //if(sptr->registerAddr!=NULL) 
+          //printf("    move $%s%d, %s\t# %s\n", reg_prefix, dstreg, sptr->registerAddr, sptr->name); 
+
+            }
+        }
+    }  
+
+  printf("\n\n");   
+}
+
+
+
+static void loadFromStackToReg(void){  //added by sammi
+    symtabnode *s0;
+    int i; 
+    printf("\n    # Before function call store values of local variables to stack from register\n");  
+    for (i = 0; i < HASHTBLSZ; i++) {
+        for (s0 = SymTab[Local][i]; s0 != NULL; s0 = s0->next) {
+            if (s0->argpos == 0) {
+                if(s0->registerAddr!=NULL)
+                  printf("\n    %s %s, %d($fp)     #%s", LoadIns[s0->type], s0->registerAddr,  s0->offset, s0->name);
+            }
+        }
+    }  
+
+  printf("\n\n");   
 }
